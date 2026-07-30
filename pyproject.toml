@@ -5,6 +5,12 @@ description = "Exercises for the Claude architect course"
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=0.40",
+    "ipdb>=0.13.13"
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.400",
 ]
 
 [build-system]
@@ -13,3 +19,13 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["lib"]
+
+# Single source of truth for type checking. Pylance (in VS Code) and the
+# `pyright` CLI both read this section, so the editor and `just typecheck`
+# report the same thing.
+[tool.pyright]
+include = ["lib", "008_prompt_engineering", "src", "*.py"]
+exclude = ["**/__pycache__", ".venv"]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
