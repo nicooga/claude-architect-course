@@ -1,7 +1,9 @@
+import ast
 import asyncio
 import inspect
 import json
 import os
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List
@@ -16,6 +18,7 @@ MAX_CONCURRENCY = 5
 @dataclass
 class TestCase:
     task: str
+    format: str
 
 
 @dataclass
@@ -31,6 +34,7 @@ class EvaluationResult:
     task: str
     output: str
     model_grade: ModelGrade
+    syntax_score: float
     score: float
 
 
@@ -62,7 +66,7 @@ async def do_grade_by_model(
     - "reasoning": A concise explanation of your assessment
     - "score": A number between 1-10
 
-    Respond with JSON. Keep your response consise and dirct.
+    Respond with JSON. Keep your response consise and direct.
     Example response shape:
     {{
         "strengths": ["...", "....]
@@ -74,7 +78,7 @@ async def do_grade_by_model(
 
     messages = MessageList()
     messages.add_user_message(eval_prompt)
-    messages.add_assistant_message("```code")
+    messages.add_assistant_message("```json")
 
     response = await model.messages.create(
         model="claude-sonnet-4-5-20250929",
@@ -87,6 +91,7 @@ async def do_grade_by_model(
 
     return ModelGrade(**json.loads(eval_text))
 
+
 async def grade_by_model(
     task: str,
     solution: str,
@@ -95,9 +100,7 @@ async def grade_by_model(
 ) -> ModelGrade:
     try:
         return await do_grade_by_model(task, solution, model)
-    except (json.decoder.JSONDecodeError, TypeError):
-        print("Error parsing grading by model")
-
+    except (json.decoder.JSONDecodeError, TypeError) as e:
         if (retries > 0):
             print("Retrying")
             return await grade_by_model(
@@ -109,6 +112,23 @@ async def grade_by_model(
         else:
             print("Retries exhausted. Giving up")
             return ModelGrade(score=0)
+
+
+def grade_by_syntax(format: str, solution: str) -> float:
+    """Validates that solution is syntactically valid for its format. Binary pass (1.0) / fail (0.0)."""
+    try:
+        if format == "json":
+            json.loads(solution)
+        elif format == "python":
+            ast.parse(solution)
+        elif format == "regex":
+            re.compile(solution)
+        else:
+            return 0.0
+    except (json.JSONDecodeError, SyntaxError, re.error):
+        return 0.0
+
+    return 1.0
 
 
 async def run_prompt(task: str, client: AsyncAnthropic) -> str:
@@ -124,7 +144,7 @@ async def run_prompt(task: str, client: AsyncAnthropic) -> str:
 
     messages = MessageList()
     messages.add_user_message(prompt)
-    messages.add_assistant_message("```")
+    messages.add_assistant_message("```code")
 
     response = await client.messages.create(
         model="claude-sonnet-4-5-20250929",
@@ -137,20 +157,23 @@ async def run_prompt(task: str, client: AsyncAnthropic) -> str:
 
 async def evaluate_test_case(
         task: str,
+        format: str,
         client: AsyncAnthropic,
         semaphore: asyncio.Semaphore
 ) -> EvaluationResult:
-    """Calls run_prompt, then grades the result"""
+    """Calls run_prompt, then grades the result by syntax and by model"""
     async with semaphore:
         output = await run_prompt(task, client)
         model_grade = await grade_by_model(task, output, client)
 
-    score = model_grade.score
+    syntax_score = grade_by_syntax(format, output)
+    score = model_grade.score if syntax_score else 0.0
 
     return EvaluationResult(
         task=task,
         output=output,
         model_grade=model_grade,
+        syntax_score=syntax_score,
         score=score
     )
 
@@ -166,7 +189,9 @@ async def main() -> None:
     semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
 
     async def run(i: int, test_case: TestCase) -> EvaluationResult:
-        result = await evaluate_test_case(test_case.task, client, semaphore)
+        result = await evaluate_test_case(
+            test_case.task, test_case.format, client, semaphore
+        )
         print(f"Evaluated test case {i+1}")
         return result
 
