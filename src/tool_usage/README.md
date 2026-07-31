@@ -57,5 +57,9 @@ Things to try at the `?>` prompt:
 - `What is 2+2?` — should answer directly, with no tool call.
 - Ask a follow-up in the same session (e.g. `What did I just ask you?`) to
   confirm conversation history survives a tool-using turn.
+- `Set a reminder for my doctor's appointment. It's a week from Thursday.`
+  — should chain all three tools: `get_current_datetime` to establish
+  "now", `add_duration_to_datetime` to compute the target date, then
+  `set_reminder` to record it.
 
 Press Ctrl+D or Ctrl+C to exit.
