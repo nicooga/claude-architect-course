@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Dict, List, Optional
 from anthropic import Anthropic
 from anthropic.types import Message, TextBlock, ToolParam, ToolResultBlockParam, ToolUseBlock
@@ -5,6 +6,12 @@ from lib.ai_generation import MessageList
 from .ports import ToolPort
 
 DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
+
+# Logs go through the standard `logging` module rather than print() so they
+# land on stderr, not stdout — the REPL owns stdout for its "?> " prompt and
+# answers, and interleaving log lines into that stream would be confusing.
+# Silent unless the app configures a handler (e.g. logging.basicConfig).
+logger = logging.getLogger(__name__)
 
 
 class AnthropicChatAdapter:
@@ -65,19 +72,41 @@ class AnthropicChatAdapter:
         return _get_text(response)
 
     def _run_tool(self, block: ToolUseBlock) -> ToolResultBlockParam:
+        call = _format_call(block.name, block.input)
         tool = self._tools.get(block.name)
         if tool is None:
+            logger.warning("\n⏺ %s\n  ⎿ Error: no tool registered with that name\n", call)
             return {
                 "type": "tool_result",
                 "tool_use_id": block.id,
                 "content": f"Error: no tool registered with name '{block.name}'",
                 "is_error": True,
             }
+        logger.info("\n⏺ %s", call)
         try:
             result = tool.execute(block.input)
         except Exception as e:
+            logger.warning("  ⎿ Error: %s\n", e)
             return {"type": "tool_result", "tool_use_id": block.id, "content": f"Error: {e}", "is_error": True}
+        logger.info("  ⎿ %s\n", _preview(result))
         return {"type": "tool_result", "tool_use_id": block.id, "content": result}
+
+
+def _format_call(name: str, tool_input: Dict[str, Any]) -> str:
+    """Renders a tool call as a Python-ish function signature, e.g.
+    get_current_datetime(timezone="UTC") — the same shorthand coding agents
+    like Claude Code and Codex use when narrating tool use."""
+    args = ", ".join(f"{key}={value!r}" for key, value in tool_input.items())
+    return f"{name}({args})"
+
+
+def _preview(result: str, limit: int = 200) -> str:
+    """Collapses a tool result to a single-line preview, truncating long
+    output the way agent UIs show a snippet rather than the full payload."""
+    flattened = str(result).replace("\n", " ")
+    if len(flattened) <= limit:
+        return flattened
+    return f"{flattened[:limit]}… (+{len(flattened) - limit} chars)"
 
 
 def _get_text(response: Message) -> str:
