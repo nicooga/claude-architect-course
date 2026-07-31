@@ -1,7 +1,7 @@
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 from anthropic import Anthropic
-from anthropic.types import Message, TextBlock, ToolParam, ToolResultBlockParam, ToolUseBlock
+from anthropic.types import Message, TextBlock, ToolResultBlockParam, ToolUnionParam, ToolUseBlock
 from lib.ai_generation import MessageList
 from .ports import ToolPort
 
@@ -37,10 +37,7 @@ class AnthropicChatAdapter:
 
         tools = tools or []
         self._tools: Dict[str, ToolPort] = {tool.name: tool for tool in tools}
-        self._tool_params: List[ToolParam] = [
-            {"name": tool.name, "description": tool.description, "input_schema": tool.input_schema}
-            for tool in tools
-        ]
+        self._tool_params: List[ToolUnionParam] = [_to_tool_param(tool) for tool in tools]
 
     def send(self, messages: MessageList) -> str:
         params: Dict[str, Any] = {
@@ -90,6 +87,21 @@ class AnthropicChatAdapter:
             return {"type": "tool_result", "tool_use_id": block.id, "content": f"Error: {e}", "is_error": True}
         logger.info("  ⎿ %s\n", _preview(result))
         return {"type": "tool_result", "tool_use_id": block.id, "content": result}
+
+
+def _to_tool_param(tool: ToolPort) -> ToolUnionParam:
+    """Anthropic-defined tools (bash, text editor, ...) are declared by
+    `type`/`name` only — the model already knows their input shape, so no
+    `input_schema` is sent. User-defined tools get the usual custom-tool
+    shape. Distinguished structurally: an Anthropic-defined tool exposes a
+    `type` attribute, a user-defined one doesn't."""
+    tool_type = getattr(tool, "type", None)
+    if tool_type is not None:
+        return cast(ToolUnionParam, {"type": tool_type, "name": tool.name})
+    return cast(
+        ToolUnionParam,
+        {"name": tool.name, "description": tool.description, "input_schema": tool.input_schema},
+    )
 
 
 def _format_call(name: str, tool_input: Dict[str, Any]) -> str:

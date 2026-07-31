@@ -31,6 +31,10 @@ understand tool calling before combining tools into a workflow:
    the model.
 3. **Set a reminder** — the actual side effect: recording the reminder in
    the system.
+4. **Text editor** — Anthropic's built-in, schema-less `str_replace_based_edit_tool`.
+   Unlike the tools above, Claude already knows its input shape server-side;
+   our job is only to execute `view`/`create`/`str_replace`/`insert` against
+   a configured working directory, confining every operation to it.
 
 By the end, Claude should handle a natural language request like "remind me
 in a week" by chaining these tools together: get the current time, compute
@@ -61,5 +65,11 @@ Things to try at the `?>` prompt:
   — should chain all three tools: `get_current_datetime` to establish
   "now", `add_duration_to_datetime` to compute the target date, then
   `set_reminder` to record it.
+- `Create a file named notes.txt in your working directory with a haiku
+  about testing.` — should trigger the text editor tool's `create` command.
+  The smoke test prints the temp directory it's using at startup, so you can
+  inspect the file afterward.
+- Ask it to view or edit an existing file in that directory (create one by
+  hand first, or ask Claude to) — should chain `view` then `str_replace`.
 
 Press Ctrl+D or Ctrl+C to exit.

@@ -1,9 +1,15 @@
 import logging
 import sys
+import tempfile
 
 from lib.repl import run_repl
 from lib.anthropic_adapter import AnthropicChatAdapter
-from src.tool_usage.tools import AddDurationToDateTimeTool, CurrentDateTimeTool, SetReminderTool
+from src.tool_usage.tools import (
+    AddDurationToDateTimeTool,
+    CurrentDateTimeTool,
+    SetReminderTool,
+    TextEditorTool,
+)
 
 
 def main() -> None:
@@ -12,9 +18,22 @@ def main() -> None:
     # in the log lines themselves carry the framing, same as an agent CLI.
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
 
+    # Scratch directory for the text editor tool — a fresh temp dir per run
+    # so the smoke test never touches real project files.
+    workdir = tempfile.mkdtemp(prefix="tool_usage_text_editor_")
+    print(f"Text editor working directory: {workdir}")
+
     chat = AnthropicChatAdapter(
-        system="You are a helpful assistant.",
-        tools=[CurrentDateTimeTool(), AddDurationToDateTimeTool(), SetReminderTool()],
+        system=(
+            "You are a helpful assistant. When using the text editor tool, "
+            f"your working directory is {workdir} — read and write files there."
+        ),
+        tools=[
+            CurrentDateTimeTool(),
+            AddDurationToDateTimeTool(),
+            SetReminderTool(),
+            TextEditorTool(root_dir=workdir),
+        ],
     )
     run_repl(chat)
 
