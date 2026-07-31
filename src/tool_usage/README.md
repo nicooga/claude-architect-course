@@ -40,3 +40,22 @@ the target time, then set the reminder.
 
 When the model has a limitation, extend it with tools rather than trying to
 prompt your way around the limitation.
+
+## Testing the REPL
+
+Make sure `ANTHROPIC_API_KEY` is set (e.g. `source .envrc` if you use direnv),
+then run the smoke test as a module so `src.tool_usage.tools` resolves:
+
+```bash
+uv run python -m src.tool_usage.repl_smoke_test
+```
+
+Things to try at the `?>` prompt:
+
+- `What time is it right now, in UTC?` — should trigger the
+  `get_current_datetime` tool and answer with the real current time.
+- `What is 2+2?` — should answer directly, with no tool call.
+- Ask a follow-up in the same session (e.g. `What did I just ask you?`) to
+  confirm conversation history survives a tool-using turn.
+
+Press Ctrl+D or Ctrl+C to exit.
