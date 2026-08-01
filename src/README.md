@@ -63,4 +63,4 @@ spending against the course's Anthropic API key wherever a local
 alternative exists (e.g. OCR for a scan-only source book).
 
 See [`rag/README.md`](rag/README.md) for the full ADR log and staged
-roadmap — implementation hasn't started yet.
+roadmap — implementation is in progress.
