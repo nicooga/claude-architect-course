@@ -35,6 +35,10 @@ understand tool calling before combining tools into a workflow:
    Unlike the tools above, Claude already knows its input shape server-side;
    our job is only to execute `view`/`create`/`str_replace`/`insert` against
    a configured working directory, confining every operation to it.
+5. **Web search** — Anthropic's built-in `web_search` tool. Fully
+   server-executed: Claude issues the search and reads results on
+   Anthropic's side, so there's nothing for us to implement at all — we
+   just declare the tool (`type`/`name`) and register it.
 
 By the end, Claude should handle a natural language request like "remind me
 in a week" by chaining these tools together: get the current time, compute
@@ -71,5 +75,7 @@ Things to try at the `?>` prompt:
   inspect the file afterward.
 - Ask it to view or edit an existing file in that directory (create one by
   hand first, or ask Claude to) — should chain `view` then `str_replace`.
+- `What's the latest stable version of Python?` — should trigger the
+  `web_search` tool and answer using live results.
 
 Press Ctrl+D or Ctrl+C to exit.

@@ -9,6 +9,7 @@ from src.tool_usage.tools import (
     CurrentDateTimeTool,
     SetReminderTool,
     TextEditorTool,
+    WebSearchTool,
 )
 
 
@@ -33,6 +34,7 @@ def main() -> None:
             AddDurationToDateTimeTool(),
             SetReminderTool(),
             TextEditorTool(root_dir=workdir),
+            WebSearchTool(),
         ],
     )
     run_repl(chat)
