@@ -26,19 +26,28 @@ Tools are how we close each gap.
 We'll add these one at a time, in order of increasing complexity, so we
 understand tool calling before combining tools into a workflow:
 
-1. **Get the current date time** — precise time awareness.
-2. **Add duration to date time** — reliable date arithmetic, offloaded from
-   the model.
-3. **Set a reminder** — the actual side effect: recording the reminder in
-   the system.
-4. **Text editor** — Anthropic's built-in, schema-less `str_replace_based_edit_tool`.
-   Unlike the tools above, Claude already knows its input shape server-side;
-   our job is only to execute `view`/`create`/`str_replace`/`insert` against
-   a configured working directory, confining every operation to it.
-5. **Web search** — Anthropic's built-in `web_search` tool. Fully
-   server-executed: Claude issues the search and reads results on
-   Anthropic's side, so there's nothing for us to implement at all — we
-   just declare the tool (`type`/`name`) and register it.
+1. **Get the current date time** — `tools/current_datetime.py`,
+   `get_current_datetime`: precise time awareness, client-executed.
+2. **Add duration to date time** — `tools/add_duration_to_datetime.py`,
+   `add_duration_to_datetime`: reliable date arithmetic, offloaded from the
+   model, client-executed.
+3. **Set a reminder** — `tools/set_reminder.py`, `set_reminder`: the actual
+   side effect, recording the reminder in the system, client-executed.
+4. **Text editor** — `tools/text_editor.py`, Anthropic's built-in,
+   schema-less `str_replace_based_edit_tool`. Unlike the tools above, Claude
+   already knows its input shape server-side; our job is only to execute
+   `view`/`create`/`str_replace`/`insert` against a configured working
+   directory, confining every operation to it.
+5. **Web search** — `tools/web_search.py`, Anthropic's built-in
+   `web_search`. Fully server-executed: Claude issues the search and reads
+   results on Anthropic's side, so there's nothing for us to implement at
+   all — we just declare the tool (`type`/`name`) and register it.
+
+`repl_smoke_test.py` wires all five tools into an interactive REPL (via
+`lib.repl` + `lib.anthropic_adapter`) for manually exercising the chapter.
+This unit is the first to depend on `lib.anthropic_adapter` (the
+`ToolPort`/`ChatPort` structural interfaces) and `lib.repl` (the
+client-agnostic REPL loop), rather than hand-rolling a chat loop per file.
 
 By the end, Claude should handle a natural language request like "remind me
 in a week" by chaining these tools together: get the current time, compute
