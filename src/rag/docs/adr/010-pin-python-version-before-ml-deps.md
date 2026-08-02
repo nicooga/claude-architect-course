@@ -14,8 +14,9 @@ lag behind brand-new CPython releases.
 
 ## Decision
 
-Before the embeddings stage adds `sentence-transformers` (see
-[`../../README.md`](../../README.md#staged-roadmap) for which numbered
-stage that currently is), verify `uv add` resolves cleanly first. If it
-doesn't, run `uv python pin 3.12` (adds a `.python-version` file, still
-satisfies `>=3.12`) and `uv sync`.
+Before adding whichever heavy ML dependency lands first — `python-doctr`
+in the ingestion stage, or `sentence-transformers` in the later embeddings
+stage (see [`../../README.md`](../../README.md#staged-roadmap) for current
+stage numbers) — verify `uv add` resolves cleanly first. If it doesn't,
+run `uv python pin 3.12` (adds a `.python-version` file, still satisfies
+`>=3.12`) and `uv sync`.

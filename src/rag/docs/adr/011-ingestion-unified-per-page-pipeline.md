@@ -54,20 +54,20 @@ stated intent to swap it and it wraps nothing expensive. OCR remains behind
 `OCRPort` exactly as ADR-006 already decided; ingestion is simply its
 caller, invoked per page instead of per document.
 
-Because the OCR adapter itself isn't built until later (it needs `torch`,
-reused from the embeddings stage — [ADR-010](010-pin-python-version-before-ml-deps.md)),
-the ingestion pipeline lands first with the OCR branch scaffolded but
-unimplemented (the loader already takes an `ocr: OCRPort` constructor
-param), and the concrete `DoctrOCRAdapter` gets wired in at its own later
-stage — see [`../../README.md`](../../README.md#staged-roadmap) for the
-current stage numbers.
+`DoctrOCRAdapter` ([ADR-006](006-local-ocr-doctr.md)) is built alongside
+the rest of ingestion and wired into the loader's construction
+(`ocr: OCRPort` constructor param) in this same stage — see
+[`../../README.md`](../../README.md#staged-roadmap). The loader depends
+only on `OCRPort`, not the concrete adapter, so a different implementation
+(e.g. a future `ClaudeVisionOCRAdapter`) stays a one-line change in
+`build_index.py`'s wiring, with zero changes to the loader itself.
 
 ## Consequences
 
 - Mixed-content PDFs (mostly native text with a stray scanned page) are
   handled for free, with no special-casing beyond the per-page loop.
-- The ingestion loader needs no changes when the OCR stage wires in the
-  real `DoctrOCRAdapter` — it already expects an `ocr: OCRPort` — matching
+- The loader's `ocr: OCRPort` constructor param keeps the concrete OCR
+  backend swappable without touching the loader itself, matching
   ADR-006's original promise.
 - Chunker signatures (`chunk_size_based`, and structure/semantic to follow)
   take a `PageList` instead of raw `pages: list[str]` + `source: str`.

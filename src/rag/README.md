@@ -22,11 +22,11 @@ decisions made and why, and a staged roadmap for building it. It's meant to
 be readable on its own — a future session can pick up implementation
 directly from here without needing the conversation that produced it.
 
-**Status: implementation in progress — no stage is fully complete yet.**
+**Status: Stage 1 (ingestion) complete; Stage 2 onward not yet started.**
 `text_chunking/size_based.py`'s chunking algorithm was written before the
 roadmap was reordered (see [ADR-011](docs/adr/011-ingestion-unified-per-page-pipeline.md));
-it still needs a small signature update once Stage 1 lands. See the roadmap
-below.
+it still needs a small signature update to accept the `PageList` Stage 1
+now produces before Stage 2 can be marked done. See the roadmap below.
 
 ## Architecture Decision Records
 
@@ -58,17 +58,25 @@ consumes the `PageList` it produces, so it can no longer be a mid-sequence
 stage (see [ADR-011](docs/adr/011-ingestion-unified-per-page-pipeline.md)
 for how this reordering happened).
 
-- [ ] **Stage 1 — Ingestion pipeline, text-only.** `uv add pypdf`.
-      `ingestion/types.py` (`PageList`: `pages: list[str]`, `source: str`),
-      `ingestion/documents.py` (walks a PDF page by page, `pypdf`
-      text-layer extraction per page; takes an `ocr: OCRPort` constructor
-      param per [ADR-006](docs/adr/006-local-ocr-doctr.md)/[ADR-011](docs/adr/011-ingestion-unified-per-page-pipeline.md)
-      even though no adapter exists yet — an image-only page hitting the
-      OCR branch at this stage should fail loudly, not silently drop
-      content) + `build_index.py` (CLI: load → chunk → embed →
-      `VectorStore.save()` → `manifest.json`). Also add the `.gitignore`
-      rule for `src/rag/library/` at this stage, once `library/raw/` first
-      gets used (see "Local library" below).
+- [x] **Stage 1 — Ingestion pipeline (text + OCR).** `uv add pypdf
+      "python-doctr[torch]"` (checking
+      [ADR-010](docs/adr/010-pin-python-version-before-ml-deps.md) first).
+      `ports.py` (`OCRPort` —
+      [ADR-001](docs/adr/001-ports-and-adapters-applied-selectively.md);
+      later stages append `EmbeddingPort`/`VectorStorePort` to this same
+      file), `ingestion/types.py` (`PageList`: `pages: list[str]`, `source:
+      str`), `ingestion/documents.py` (walks a PDF page by page, `pypdf`
+      text-layer extraction per page, falling back per page to an
+      `ocr: OCRPort` constructor param per
+      [ADR-006](docs/adr/006-local-ocr-doctr.md)/[ADR-011](docs/adr/011-ingestion-unified-per-page-pipeline.md)),
+      `ingestion/ocr.py` (`DoctrOCRAdapter` implementing `OCRPort`,
+      per-book disk cache under `library/ocr_cache/<book_stem>/`) +
+      `build_index.py` (CLI: for now, scans `library/raw/*.pdf` and prints
+      an ingestion summary per book — the chunk → embed → save →
+      `manifest.json` steps get added incrementally as Stages 2 and 4
+      land). Also add the `.gitignore` rule for `src/rag/library/` at this
+      stage, once `library/raw/` first gets used (see "Local library"
+      below).
 
 - [ ] **Stage 2 — Size-based chunking.** `text_chunking/types.py` +
       `size_based.py`. No new dependencies. `Chunk` dataclass:
@@ -89,8 +97,8 @@ for how this reordering happened).
 - [ ] **Stage 4 — Embeddings + vector store + semantic chunking.**
       `uv add sentence-transformers numpy` (check
       [ADR-010](docs/adr/010-pin-python-version-before-ml-deps.md) first).
-      `ports.py` (`EmbeddingPort` and `VectorStorePort` —
-      [ADR-001](docs/adr/001-ports-and-adapters-applied-selectively.md)),
+      `ports.py` gains `EmbeddingPort` and `VectorStorePort`
+      ([ADR-001](docs/adr/001-ports-and-adapters-applied-selectively.md)),
       `embedder.py` (`SentenceTransformerEmbedder`, implements
       `EmbeddingPort`), `vector_store.py` (`VectorStore`, hand-written
       cosine similarity, implements `VectorStorePort` per
@@ -99,17 +107,7 @@ for how this reordering happened).
       similarity-drop splitting, threshold default to confirm: 0.5; may
       also bridge a page seam per ADR-004, same as Stage 3).
 
-- [ ] **Stage 5 — Local OCR for the scanned book.**
-      `uv add "python-doctr[torch]"`. Add `OCRPort` to `ports.py`, then
-      `ingestion/ocr.py` (`DoctrOCRAdapter` implementing `OCRPort`,
-      per-page disk cache under `library/ocr_cache/<book_stem>/`). Wire
-      `DoctrOCRAdapter()` into the `ingestion/documents.py` loader's
-      construction in `build_index.py` — the loader itself needs no
-      changes, per [ADR-006](docs/adr/006-local-ocr-doctr.md)/[ADR-011](docs/adr/011-ingestion-unified-per-page-pipeline.md);
-      it was already calling the OCR branch, just without a real adapter
-      behind it until now.
-
-- [ ] **Stage 6 — `search_documents` tool + REPL wiring (semantic-only).**
+- [ ] **Stage 5 — `search_documents` tool + REPL wiring (semantic-only).**
       `tools/search_documents.py` (`SearchDocumentsTool`, `ToolPort`
       shape, takes a `VectorStorePort` at construction — passed the
       in-memory `VectorStore` for now, per
@@ -118,7 +116,7 @@ for how this reordering happened).
       `src/tool_usage/repl_smoke_test.py`). Add a "Testing the REPL"
       section to this README once this stage lands.
 
-- [ ] **Stage 7 — Lexical indexing (BM25) + hybrid fusion.** No new
+- [ ] **Stage 6 — Lexical indexing (BM25) + hybrid fusion.** No new
       dependency (stdlib only). `lexical_index.py` (`BM25Index`, `k1=1.5`,
       `b=0.75` defaults), `retrieval.py` (`reciprocal_rank_fusion()`,
       `HybridRetriever`). Update `build_index.py` to also save
@@ -142,11 +140,15 @@ form). Once Stage 1 lands, drop books into `src/rag/library/raw/` and
 build the index locally:
 
 ```bash
-uv run python -m src.rag.build_index --strategy size
+uv run python -m src.rag.build_index
 ```
 
-`src/rag/library/` is (or will be, as of Stage 1) covered by a
-`.gitignore` rule — nothing under it is meant to be tracked.
+As of Stage 1, this scans `library/raw/*.pdf` and prints an ingestion
+summary per book (page count, OCR fallback pages, characters extracted).
+The `--strategy` flag joins this command once chunking lands (Stage 2+).
+
+`src/rag/library/` is covered by a `.gitignore` rule — nothing under it is
+meant to be tracked.
 
 ## Open defaults to confirm during implementation
 
@@ -156,9 +158,10 @@ confirm or tune while building the corresponding stage:
 - Embedding model: `all-MiniLM-L6-v2`.
 - Chunk size/overlap: 1000 chars / 200 chars (size-based).
 - Semantic chunking similarity threshold: 0.5.
-- What counts as "usable text" from a pypdf page extraction (e.g. a
-  minimum non-whitespace character count) before the ingestion pipeline
-  treats a page as image-only and falls back to OCR.
+- What counts as "usable text" from a pypdf page extraction before the
+  ingestion pipeline treats a page as image-only and falls back to OCR:
+  fewer than 20 non-whitespace characters (`PDFLoader`'s `min_text_chars`,
+  tunable at construction).
 - doctr's default model pair — lighter architectures are available if CPU
   OCR turns out too slow.
 - BM25 `k1`/`b`: 1.5 / 0.75. RRF `k`: 60.

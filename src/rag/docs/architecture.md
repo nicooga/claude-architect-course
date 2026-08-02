@@ -54,6 +54,7 @@ classDiagram
     class PageList {
         +list~str~ pages
         +str source
+        +list~int~ ocr_pages
     }
     class Chunk {
         +str text
@@ -72,7 +73,7 @@ classDiagram
     }
     class OCRPort {
         <<protocol>>
-        +transcribe(pdf_path, cache_dir, max_pages) list~str~
+        +transcribe(pdf_path, cache_dir, page_indices) dict~int, str~
     }
     class VectorStorePort {
         <<protocol>>
