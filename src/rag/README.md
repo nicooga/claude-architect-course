@@ -22,8 +22,8 @@ decisions made and why, and a staged roadmap for building it. It's meant to
 be readable on its own — a future session can pick up implementation
 directly from here without needing the conversation that produced it.
 
-**Status: Stages 1–2 (ingestion, size-based chunking) complete; Stage 3
-onward not yet started.**
+**Status: Stages 1–3 (ingestion, size-based chunking, structure-based
+chunking) complete; Stage 4 onward not yet started.**
 
 ## Architecture Decision Records
 
@@ -84,12 +84,20 @@ for how this reordering happened).
       prints a chunk count/avg-length summary per book alongside the
       ingestion summary.
 
-- [ ] **Stage 3 — Structure-based chunking.** `structure_based.py`. No new
+- [x] **Stage 3 — Structure-based chunking.** `structure_based.py`. No new
       dependencies. Regex heading/paragraph heuristics, no parsing
-      library. Compare boundaries against Stage 2 on a sample text. Per
-      [ADR-004](docs/adr/004-chunking-strategies-page-scoped.md), may
-      bridge a page seam when a paragraph continues onto the next page —
-      report `location` as a range (`"pages N-M"`) when it does.
+      library: a line is a heading if it's short, doesn't end mid-sentence,
+      and is either a numbered heading (`Capítulo 3`) or fully uppercase;
+      everything else is grouped into blank-line-separated paragraph
+      blocks (or, absent blank lines — the normal case for PDF text — one
+      block per heading-to-heading run) and packed into chunks up to
+      `max_chunk_size` (1000, mirrors Stage 2's default for
+      comparability), cutting only at a sentence boundary. A heading
+      always starts a new chunk. Per
+      [ADR-004](docs/adr/004-chunking-strategies-page-scoped.md), a
+      paragraph/sentence run bridges a page seam whenever nothing (heading
+      or size budget) forces a break there — `location` then reports a
+      range (`"pages N-M"`) instead of a single page.
 
 - [ ] **Stage 4 — Embeddings + vector store + semantic chunking.**
       `uv add sentence-transformers numpy` (check
@@ -142,13 +150,13 @@ uv run python -m src.rag.build_index
 
 This scans `library/raw/*.pdf`, prints an ingestion summary per book (page
 count, OCR fallback pages, characters extracted), then chunks each book
-with `--strategy` (`size` for now — more strategies join this flag as
-Stages 3–4 land) and prints a chunk count/avg-length summary.
+with `--strategy` (`size` or `structure` — semantic joins this flag as
+Stage 4 lands) and prints a chunk count/avg-length summary.
 
 `src/rag/library/` is covered by a `.gitignore` rule — nothing under it is
 meant to be tracked.
 
-## Testing ingestion and chunking (Stages 1–2)
+## Testing ingestion and chunking (Stages 1–3)
 
 There's no test framework wired up yet (no `pytest` in `pyproject.toml`) —
 verification for these stages is manual, the same way `tool_usage`'s
@@ -196,6 +204,52 @@ short chunk from the second, all tagged `location="page 1"` /
 `location="page 2"` respectively — chunks never cross a page boundary
 (ADR-004).
 
+**End-to-end, `structure` strategy — compare against `size`.** Same
+command, `--strategy structure`:
+
+```bash
+uv run python -m src.rag.build_index --strategy structure
+```
+
+Against the two books used to build this stage: the text-layer book
+(Pedrosa et al.) produced 279 structure chunks vs. 365 size chunks over
+the same pages, with sentence-clean boundaries and page ranges on chunks
+whose paragraph bridges a page seam (`pages N-M`) — the payoff this stage
+is meant to demonstrate. The scan-only, OCR'd book (Romero) shows a real
+limitation instead: its running header/chapter-title lines are repeated,
+all-caps text on *every* page, which `_is_heading` can't distinguish from
+a real heading (no cross-page repetition check — see the docstring in
+`structure_based.py`), so it forces a chunk break on nearly every page and
+pulls the average chunk size well under 1000. Worth reproducing once
+against your own books rather than trusting these numbers as they age.
+
+**Isolated, without a real PDF.** To check heading detection, sentence
+packing, and seam bridging directly:
+
+```bash
+uv run python -c "
+from src.rag.ingestion.types import PageList
+from src.rag.text_chunking import chunk_structure_based
+
+page_list = PageList(
+    pages=[
+        'INTRODUCTION\nThis is the first sentence. The next one runs long '
+        'enough that it does not finish before the page does, it just',
+        'continues right where it left off. A new sentence starts here.',
+    ],
+    source='demo',
+)
+chunks = chunk_structure_based(page_list, max_chunk_size=500)
+for c in chunks:
+    print(c.chunk_id, c.location, repr(c.text))
+"
+```
+
+Expect a single chunk, `location="pages 1-2"`: the heading merges into the
+same chunk as the body that follows it, and the sentence split across the
+page boundary rejoins into one sentence in the output text instead of
+being cut at the seam.
+
 ## Open defaults to confirm during implementation
 
 None of these are settled requirements — they're starting points to
@@ -203,6 +257,23 @@ confirm or tune while building the corresponding stage:
 
 - Embedding model: `all-MiniLM-L6-v2`.
 - Semantic chunking similarity threshold: 0.5.
+- Structure-based chunking `max_chunk_size`: 1000, chosen to mirror
+  Stage 2's default so the two strategies' chunk counts are directly
+  comparable (confirmed against the two books in this project — see
+  "Testing ingestion and chunking" above).
+- Structure-based heading detection has no cross-page repetition check —
+  a scanned book's repeated running header/footer lines match the
+  all-caps heading heuristic on every page. Fixing this (e.g. dropping
+  lines that repeat verbatim across most pages, at the ingestion layer)
+  is out of scope for Stage 3; flagged here in case it's worth doing
+  before Stage 4 builds on top of these chunks.
+- Same root cause, different symptom: a run of consecutive heading-like
+  lines with no body text between them (a title page — author, title,
+  subtitle, edition, each its own short all-caps line) comes out as
+  several separate near-empty chunks instead of one. This is the ceiling
+  of inferring structure from plain text with regexes rather than from a
+  format that actually carries structure (HTML/XML); not worth chasing
+  for this experiment, so left as-is.
 - What counts as "usable text" from a pypdf page extraction before the
   ingestion pipeline treats a page as image-only and falls back to OCR:
   fewer than 20 non-whitespace characters (`PDFLoader`'s `min_text_chars`,

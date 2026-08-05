@@ -2,15 +2,16 @@ import argparse
 from pathlib import Path
 
 from .ingestion import DoctrOCRAdapter, PDFLoader
-from .text_chunking import chunk_size_based
+from .text_chunking import chunk_size_based, chunk_structure_based
 
 LIBRARY_DIR = Path(__file__).parent / "library"
 RAW_DIR = LIBRARY_DIR / "raw"
 OCR_CACHE_DIR = LIBRARY_DIR / "ocr_cache"
 
-# Chunking strategies get added here as later stages land (structure, semantic).
+# Chunking strategies get added here as later stages land (semantic).
 STRATEGIES = {
     "size": chunk_size_based,
+    "structure": chunk_structure_based,
 }
 
 
@@ -24,6 +25,7 @@ def summarize(loader: PDFLoader, pdf_path: Path, strategy: str) -> None:
     )
 
     chunks = STRATEGIES[strategy](page_list)
+
     import ipdb; ipdb.set_trace()
     avg_chars = total_chars / len(chunks) if chunks else 0
     print(f"  [{strategy}] {len(chunks)} chunks, {avg_chars:.0f} chars avg")
