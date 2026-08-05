@@ -1,5 +1,6 @@
 from typing import List
 
+from ..ingestion.types import PageList
 from .types import Chunk
 
 STRATEGY = "size"
@@ -9,8 +10,7 @@ DEFAULT_OVERLAP = 200
 
 
 def chunk_size_based(
-    pages: List[str],
-    source: str,
+    page_list: PageList,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     overlap: int = DEFAULT_OVERLAP,
 ) -> List[Chunk]:
@@ -21,7 +21,7 @@ def chunk_size_based(
 
     stride = chunk_size - overlap
     chunks: List[Chunk] = []
-    for page_number, page_text in enumerate(pages, start=1):
+    for page_number, page_text in enumerate(page_list.pages, start=1):
         start = 0
         page_len = len(page_text)
         while start < page_len:
@@ -29,10 +29,10 @@ def chunk_size_based(
             chunks.append(
                 Chunk(
                     text=page_text[start:end],
-                    source=source,
+                    source=page_list.source,
                     location=f"page {page_number}",
                     strategy=STRATEGY,
-                    chunk_id=f"{STRATEGY}:{source}:p{page_number}:{len(chunks)}",
+                    chunk_id=f"{STRATEGY}:{page_list.source}:p{page_number}:{len(chunks)}",
                 )
             )
             if end >= page_len:
