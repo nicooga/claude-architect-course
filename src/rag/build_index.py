@@ -60,12 +60,8 @@ def build_index(strategy_name: str) -> None:
         return
 
     print(f"Embedding {len(all_chunks)} chunks...", flush=True)
-    embeddings = embedder.embed([chunk.text for chunk in all_chunks])
-
-    store = VectorStore()
-    store.build(all_chunks, embeddings)
-
-    import ipdb; ipdb.set_trace()
+    store = VectorStore(embedder)
+    store.add(all_chunks)
 
     index_dir = INDEX_DIR / strategy_name
     store.save(str(index_dir))

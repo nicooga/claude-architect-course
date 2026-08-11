@@ -17,6 +17,10 @@ class SentenceTransformerEmbedder:
         self._model_name = model_name
         self._model: Optional[object] = None
 
+    @property
+    def name(self) -> str:
+        return self._model_name
+
     def embed(self, texts: List[str]) -> List[np.ndarray]:
         if self._model is None:
             from sentence_transformers import SentenceTransformer

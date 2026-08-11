@@ -34,18 +34,30 @@ class OCRPort(Protocol):
 
 
 class EmbeddingPort(Protocol):
-    """What chunking/indexing/retrieval need from an embedding backend."""
+    """What chunking/indexing/retrieval need from an embedding backend.
+
+    `name` identifies the model producing the vectors. A vector store holds
+    an embedder and stamps this into the saved index, so it can accept an
+    index only from the model that built it (ADR-003).
+    """
+
+    @property
+    def name(self) -> str: ...
 
     def embed(self, texts: List[str]) -> List[np.ndarray]: ...
 
 
 class VectorStorePort(Protocol):
-    """What retrieval needs from a vector store (ADR-003). Only `search` is
-    committed to here — persistence is whatever fits a given backend (see
-    ADR-003's consequences), but the in-memory adapter implements save/load
-    too since it has no other durability."""
+    """What retrieval needs from a vector store (ADR-003).
 
-    def search(self, query_embedding: np.ndarray, top_k: int) -> List[SearchResult]: ...
+    `search` takes the query as text: each adapter owns its embedder and
+    pairs an index with the model that built it (ADR-003). Only `search`
+    is committed to here — persistence is whatever fits a given backend
+    (see ADR-003's consequences), but the in-memory adapter implements
+    save/load too since it has no other durability.
+    """
+
+    def search(self, query: str, top_k: int) -> List[SearchResult]: ...
 
     def save(self, index_dir: str) -> None: ...
 

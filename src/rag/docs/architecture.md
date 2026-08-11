@@ -28,15 +28,15 @@ flowchart TD
     end
 
     subgraph IDX["build_index.py (ADR-005)"]
-        I --> J["EmbeddingPort<br/>SentenceTransformerEmbedder, ADR-002"]
+        I -->|"add(chunks)"| L["VectorStorePort<br/>VectorStore, ADR-003"]
         I --> K["BM25Index (ADR-008)"]
-        J --> L["VectorStorePort<br/>VectorStore, ADR-003"]
+        L -->|"embeds chunks and queries"| J["EmbeddingPort<br/>SentenceTransformerEmbedder, ADR-002"]
         L --> M["library/index/&lt;strategy&gt;/embeddings.npy"]
         K --> N["library/index/&lt;strategy&gt;/bm25.json"]
     end
 
     subgraph RET["retrieval.py + tools/search_documents.py"]
-        O[Query] --> J
+        O[Query] -->|"search(query, top_k)"| L
         O --> K
         L --> P["HybridRetriever<br/>reciprocal_rank_fusion(), ADR-009"]
         K --> P
@@ -69,6 +69,7 @@ classDiagram
     }
     class EmbeddingPort {
         <<protocol>>
+        +str name
         +embed(texts) list~ndarray~
     }
     class OCRPort {
@@ -77,19 +78,23 @@ classDiagram
     }
     class VectorStorePort {
         <<protocol>>
-        +search(query_embedding, top_k) list~SearchResult~
+        +search(query, top_k) list~SearchResult~
         +save(index_dir)
         +load(index_dir)
     }
     class SentenceTransformerEmbedder
     class DoctrOCRAdapter
-    class VectorStore
+    class VectorStore {
+        +add(chunks)
+        +search_vector(query_embedding, top_k) list~SearchResult~
+    }
     class BM25Index
     class HybridRetriever
 
     EmbeddingPort <|.. SentenceTransformerEmbedder
     OCRPort <|.. DoctrOCRAdapter
     VectorStorePort <|.. VectorStore
+    VectorStore --> EmbeddingPort : embeds chunks and queries
     HybridRetriever --> VectorStorePort
     HybridRetriever --> BM25Index
     PageList --> Chunk : chunked into

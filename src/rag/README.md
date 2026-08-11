@@ -37,7 +37,7 @@ diagram of how the pieces described below fit together.
 | --- | --- |
 | [001](docs/adr/001-ports-and-adapters-applied-selectively.md) | Ports/adapters applied selectively, not uniformly |
 | [002](docs/adr/002-local-embeddings-sentence-transformers.md) | Local embeddings via `sentence-transformers`, behind `EmbeddingPort` |
-| [003](docs/adr/003-in-memory-vector-store.md) | In-memory numpy vector store, behind `VectorStorePort` |
+| [003](docs/adr/003-in-memory-vector-store.md) | In-memory numpy vector store owning its embedder, behind `VectorStorePort` |
 | [004](docs/adr/004-chunking-strategies-page-scoped.md) | Chunking strategies are page-scoped, with a seam-crossing exception for structure/semantic chunkers |
 | [005](docs/adr/005-one-index-per-strategy-persisted.md) | One index per strategy, persisted to disk |
 | [006](docs/adr/006-local-ocr-doctr.md) | Local OCR via `python-doctr`, not Claude vision — behind `OCRPort` |
@@ -112,7 +112,10 @@ for how this reordering happened).
       its import). `vector_store.py` (`VectorStore`, hand-written cosine
       similarity over a stacked, L2-normalized numpy array, implements
       `VectorStorePort` per [ADR-003](docs/adr/003-in-memory-vector-store.md);
-      `save`/`load` round-trip `embeddings.npy` + `chunks.json`).
+      constructed with an `EmbeddingPort`: `add(chunks)` embeds and
+      appends, `search(query)` embeds the query, and `save`/`load`
+      round-trip `embeddings.npy` + `chunks.json` + `model.json`, the last
+      of which pins an index to the model that built it).
       `text_chunking/semantic.py` (regex sentence splitter, page-scoped
       like Stage 3's paragraph splitter, then packs sentences together
       while adjacent-sentence cosine similarity stays at/above
@@ -166,7 +169,7 @@ count, OCR fallback pages, characters extracted), chunks every book with
 `--strategy` (`size`, `structure`, or `semantic`) and prints a chunk
 count/avg-length summary, then embeds every chunk across the whole library
 and saves one index — `library/index/<strategy>/{embeddings.npy,
-chunks.json, manifest.json}` — for that strategy (ADR-005).
+chunks.json, model.json, manifest.json}` — for that strategy (ADR-005).
 
 `src/rag/library/` is covered by a `.gitignore` rule — nothing under it is
 meant to be tracked.
@@ -293,13 +296,10 @@ uv run python -c "
 from src.rag.vector_store import VectorStore
 from src.rag.embedder import SentenceTransformerEmbedder
 
-store = VectorStore()
+store = VectorStore(SentenceTransformerEmbedder())
 store.load('src/rag/library/index/semantic')
 
-embedder = SentenceTransformerEmbedder()
-query_embedding = embedder.embed(['crisis economica en Argentina'])[0]
-
-for result in store.search(query_embedding, top_k=3):
+for result in store.search('crisis economica en Argentina', top_k=3):
     print(round(result.score, 3), result.chunk.location, result.chunk.text[:120])
 "
 ```
