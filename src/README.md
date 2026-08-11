@@ -7,7 +7,14 @@ and are meant to be read/run roughly in this order:
 1. [`basic_concepts/`](basic_concepts/README.md)
 2. [`prompt_engineering/`](prompt_engineering/README.md)
 3. [`tool_usage/`](tool_usage/README.md)
-4. [`rag/`](rag/README.md)
+4. `prompt_caching/` (planned)
+5. `mcp/` (planned)
+6. `agent_skills/` (planned)
+7. [`rag/`](rag/README.md) (optional exploration)
+
+See the [root README](../README.md) for how these units map to the Claude
+Architect Certification Exam content and for the plan behind the planned
+units.
 
 Shared, reusable code (the `MessageList` helper, the Anthropic chat adapter,
 the generic REPL loop) lives outside `src/`, in [`lib/`](../lib), and is
