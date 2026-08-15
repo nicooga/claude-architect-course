@@ -1,5 +1,5 @@
 import os
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 CACHE_FILENAME = "page_{index:04d}.txt"
 
@@ -20,6 +20,19 @@ class DoctrOCRAdapter:
     completes, so an interrupted run resumes from the last cached page
     instead of starting over, and a rerun after full success skips the
     model entirely.
+
+    A page image wider than it is tall is treated as a double-page spread
+    (a book scanned two physical pages at a time) and split into left/right
+    halves before OCR, each transcribed separately and joined with a blank
+    line: doctr's reading-order heuristic doesn't reliably separate the two
+    halves of a wide spread, and was observed interleaving their lines
+    (a sentence from the left half immediately followed by an unrelated one
+    from the right half, with no punctuation between them for downstream
+    sentence splitting to catch). Splitting first sidesteps that rather
+    than trying to fix reading order after the fact. Known blind spot: a
+    genuinely landscape single page (e.g. a full-page foldout chart) would
+    be mis-split by this same width>height check — not a concern for the
+    two books this pipeline has been run against so far.
     """
 
     def transcribe(
@@ -45,15 +58,38 @@ class DoctrOCRAdapter:
 
         for start in range(0, len(missing), BATCH_SIZE):
             batch_indices = missing[start : start + BATCH_SIZE]
-            result = model([doc_pages[i] for i in batch_indices])
+            feed_images, spans = self._prepare_images(doc_pages, batch_indices)
+            result = model(feed_images)
             batch_texts = {
-                index: page.render() for index, page in zip(batch_indices, result.pages)
+                index: "\n\n".join(result.pages[i].render() for i in range(*span))
+                for index, span in zip(batch_indices, spans)
             }
             cached.update(batch_texts)
             self._write_cache(cache_dir, batch_texts)
             print(f"    OCR: {len(cached)}/{len(page_indices)} pages done", flush=True)
 
         return cached
+
+    def _prepare_images(self, doc_pages, page_indices: List[int]) -> Tuple[List, List[Tuple[int, int]]]:
+        """Builds the flat list of images to feed doctr for one batch, splitting
+        any double-page spread into left/right halves first. `spans[i]` is the
+        `(start, end)` range in the returned image list — as a `range()`-ready
+        pair — that page_indices[i]'s text was rendered from: length 2 for a
+        split spread, 1 otherwise."""
+        images = []
+        spans = []
+        for index in page_indices:
+            image = doc_pages[index]
+            height, width = image.shape[:2]
+            start = len(images)
+            if width > height:
+                midpoint = width // 2
+                images.append(image[:, :midpoint])
+                images.append(image[:, midpoint:])
+            else:
+                images.append(image)
+            spans.append((start, len(images)))
+        return images, spans
 
     def _read_cache(self, cache_dir: str, page_indices: List[int]) -> Dict[int, str]:
         texts: Dict[int, str] = {}

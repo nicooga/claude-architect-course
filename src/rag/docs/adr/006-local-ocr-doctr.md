@@ -43,7 +43,24 @@ reaches it. Each batch is written to disk under
 interrupted run resumes from the last cached page instead of starting
 over, and a run after full success skips the model entirely.
 
+A page image wider than it is tall is a double-page spread (a book scanned
+two physical pages at a time, not one page per image) — `DoctrOCRAdapter`
+splits it into left/right halves and OCRs each separately, joined with a
+blank line, rather than feeding doctr the full spread. doctr's own reading
+order doesn't reliably separate a wide spread's two halves: observed
+interleaving their lines mid-sentence (a fragment from the left half
+directly followed by an unrelated one from the right half, no punctuation
+between them for downstream sentence splitting to catch). Splitting first
+sidesteps that instead of trying to fix reading order after the fact. This
+check is purely `width > height` on the page image, no per-book metadata —
+confirmed against both books in this project: all 218 pages of the
+scan-only book are uniformly landscape (a double-page-spread scan), the
+other book's pages are all portrait, so the check needs no book-level
+override to avoid misfiring on it.
+
 ## Consequences
 
-CPU inference on a full book may be slow (minutes), but it's a one-time,
-cached, free preprocessing step.
+CPU inference on a full book may be slow (minutes to just over an hour for
+a ~200-page scan-only book at this batch size), but it's a one-time,
+cached, free preprocessing step. Splitting a spread doubles the images fed
+to doctr per requested page, which is part of that cost.

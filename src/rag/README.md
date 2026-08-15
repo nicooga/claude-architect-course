@@ -393,6 +393,12 @@ confirm or tune while building the corresponding stage:
   ingestion pipeline treats a page as image-only and falls back to OCR:
   fewer than 20 non-whitespace characters (`PDFLoader`'s `min_text_chars`,
   tunable at construction).
+- Double-page-spread scans (see [ADR-006](docs/adr/006-local-ocr-doctr.md))
+  are detected purely by `width > height` on the page image — confirmed
+  against both books here (218/218 landscape pages for the scan-only book,
+  0/159 for the other), but a genuinely landscape single page (e.g. a
+  full-page foldout chart) would be mis-split by this same check. Not a
+  concern for either book in this project so far.
 - doctr's default model pair — lighter architectures are available if CPU
   OCR turns out too slow.
 - BM25 `k1`/`b`: 1.5 / 0.75. RRF `k`: 60.
