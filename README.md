@@ -22,9 +22,9 @@ Required/recommended content and where it lives in this repo.
 | --- | --- | --- |
 | Accessing Claude with the API | [Stage 1](#stage-1--accessing-claude-with-the-api-done) | Done |
 | Tool Use with Claude | [Stage 3](#stage-3--tool-use-with-claude-done) | Done |
-| Features of Claude: Prompt Caching | [Stage 4](#stage-4--prompt-caching-todo) | To do |
-| Features of Claude: Rules of Prompt Caching | [Stage 4](#stage-4--prompt-caching-todo) | To do |
-| Features of Claude: Prompt Caching in Action | [Stage 4](#stage-4--prompt-caching-todo) | To do |
+| Features of Claude: Prompt Caching | [Stage 4](#stage-4--prompt-caching-in-progress) | Done |
+| Features of Claude: Rules of Prompt Caching | [Stage 4](#stage-4--prompt-caching-in-progress) | Done |
+| Features of Claude: Prompt Caching in Action | [Stage 4](#stage-4--prompt-caching-in-progress) | To do |
 | Model Context Protocol | [Stage 5](#stage-5--model-context-protocol-todo) | To do |
 
 ### Course: Introduction to Agent Skills
@@ -89,9 +89,9 @@ unit to depend on `lib/anthropic_adapter` (`ToolPort`/`ChatPort`) and
 - [x] `web_search` - built-in, fully server-executed
 - [x] `repl_smoke_test.py` - all five tools wired into an interactive REPL
 
-### Stage 4 - Prompt caching (todo)
+### Stage 4 - Prompt caching (in progress)
 
-`src/prompt_caching/` (to create)
+`src/prompt_caching/`
 
 Covers all three required lessons: what prompt caching is, the rules that
 govern it, and caching in action with measured results. Best placed right
@@ -101,15 +101,19 @@ in this repo.
 
 Planned steps:
 
-- [ ] `001_cache_basics.py` - add a `cache_control: {"type": "ephemeral"}`
+- [x] `001_cache_basics.py` - add a `cache_control: {"type": "ephemeral"}`
       breakpoint to a long system prompt; print
       `cache_creation_input_tokens` vs. `cache_read_input_tokens` from
       `response.usage` on a cold then warm call.
-- [ ] `002_cache_rules.py` - demonstrate the rules empirically: prefix-only
+- [x] `002_cache_rules.py` - demonstrate the rules empirically: prefix-only
       matching (a change before the breakpoint busts the cache, a change
       after it does not), minimum cacheable prefix length, the 4-breakpoint
       cap, TTL/refresh behavior, and the ordering
       (tools -> system -> messages) that determines what the prefix is.
+      Each call classifies its own outcome from the usage counters and
+      checks it against the rule, so the script is self-verifying; the
+      timing parts are opt-in (`--ttl-wait`, `--expire`) because they need
+      real waiting.
 - [ ] `003_cache_in_action.py` - a realistic multi-turn conversation over a
       large cached document (reuse a book from `src/rag/library/`), caching
       the tool definitions and the document, then reporting per-turn token
