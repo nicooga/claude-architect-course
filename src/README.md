@@ -7,7 +7,7 @@ and are meant to be read/run roughly in this order:
 1. [`basic_concepts/`](basic_concepts/README.md)
 2. [`prompt_engineering/`](prompt_engineering/README.md)
 3. [`tool_usage/`](tool_usage/README.md)
-4. `prompt_caching/` (in progress)
+4. [`prompt_caching/`](prompt_caching/README.md)
 5. `mcp/` (planned)
 6. `agent_skills/` (planned)
 7. [`rag/`](rag/README.md) (optional exploration)
@@ -17,8 +17,9 @@ Architect Certification Exam content and for the plan behind the planned
 units.
 
 Shared, reusable code (the `MessageList` helper, the Anthropic chat adapter,
-the generic REPL loop) lives outside `src/`, in [`lib/`](../lib), and is
-imported by later units instead of being copy-pasted forward.
+the generic REPL loop, the prompt-caching block builders and usage/cost
+reporting) lives outside `src/`, in [`lib/`](../lib), and is imported by later
+units instead of being copy-pasted forward.
 
 Run any module from the project root with `uv`, e.g.:
 
@@ -59,6 +60,20 @@ rather than hand-rolling a chat loop per file.
 
 See [`tool_usage/README.md`](tool_usage/README.md) for the full write-up
 and manual test script.
+
+## `prompt_caching/`
+
+Covers the feature the way its failure mode demands: every claim is printed
+from `response.usage`, because a breakpoint that does not apply raises no
+error. One script for the mechanics (cold write, warm read), one that checks
+each rule empirically and classifies its own results (prefix matching, the
+minimum prefix, the four-breakpoint cap, TTL and refresh, render order), and
+one that prices a real multi-turn conversation over a large cached document —
+per-turn counters, time-to-first-token, and cost against the uncached
+counterfactual. First unit to depend on `lib.prompt_caching`.
+
+See [`prompt_caching/README.md`](prompt_caching/README.md) for the write-up,
+the placement pattern, and the measured results.
 
 ## `rag/`
 

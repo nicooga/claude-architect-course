@@ -22,9 +22,9 @@ Required/recommended content and where it lives in this repo.
 | --- | --- | --- |
 | Accessing Claude with the API | [Stage 1](#stage-1--accessing-claude-with-the-api-done) | Done |
 | Tool Use with Claude | [Stage 3](#stage-3--tool-use-with-claude-done) | Done |
-| Features of Claude: Prompt Caching | [Stage 4](#stage-4--prompt-caching-in-progress) | Done |
-| Features of Claude: Rules of Prompt Caching | [Stage 4](#stage-4--prompt-caching-in-progress) | Done |
-| Features of Claude: Prompt Caching in Action | [Stage 4](#stage-4--prompt-caching-in-progress) | To do |
+| Features of Claude: Prompt Caching | [Stage 4](#stage-4--prompt-caching-done) | Done |
+| Features of Claude: Rules of Prompt Caching | [Stage 4](#stage-4--prompt-caching-done) | Done |
+| Features of Claude: Prompt Caching in Action | [Stage 4](#stage-4--prompt-caching-done) | Done |
 | Model Context Protocol | [Stage 5](#stage-5--model-context-protocol-todo) | To do |
 
 ### Course: Introduction to Agent Skills
@@ -42,8 +42,8 @@ Required/recommended content and where it lives in this repo.
 
 ## Stages
 
-Ordered so each stage can lean on the one before it. Stages 1-3 are done;
-4-6 are the remaining required work; 7 is personal exploration and can be
+Ordered so each stage can lean on the one before it. Stages 1-4 are done;
+5-6 are the remaining required work; 7 is personal exploration and can be
 picked up or dropped at any point.
 
 ### Stage 1 - Accessing Claude with the API (done)
@@ -89,17 +89,15 @@ unit to depend on `lib/anthropic_adapter` (`ToolPort`/`ChatPort`) and
 - [x] `web_search` - built-in, fully server-executed
 - [x] `repl_smoke_test.py` - all five tools wired into an interactive REPL
 
-### Stage 4 - Prompt caching (in progress)
+### Stage 4 - Prompt caching (done)
 
-`src/prompt_caching/`
+[`src/prompt_caching/`](src/prompt_caching/README.md)
 
 Covers all three required lessons: what prompt caching is, the rules that
 govern it, and caching in action with measured results. Best placed right
 after tool use, because a tool-heavy system prompt plus a long RAG-style
 document are the two most natural things to cache, and both already exist
-in this repo.
-
-Planned steps:
+in this repo. First unit to depend on `lib/prompt_caching`.
 
 - [x] `001_cache_basics.py` - add a `cache_control: {"type": "ephemeral"}`
       breakpoint to a long system prompt; print
@@ -114,16 +112,23 @@ Planned steps:
       checks it against the rule, so the script is self-verifying; the
       timing parts are opt-in (`--ttl-wait`, `--expire`) because they need
       real waiting.
-- [ ] `003_cache_in_action.py` - a realistic multi-turn conversation over a
-      large cached document (reuse a book from `src/rag/library/`), caching
-      the tool definitions and the document, then reporting per-turn token
-      counts, latency, and cost delta vs. an uncached run of the same
-      transcript.
-- [ ] Extract the reusable bits into `lib/` - a small
-      `cache_control` helper for building cached system/tool blocks and a
-      `usage` reporter, so later stages can turn caching on without
-      re-deriving it.
-- [ ] `README.md` for the unit, in the style of the other unit READMEs.
+- [x] `003_cache_in_action.py` - a five-turn conversation over a large cached
+      document (a book from `src/rag/library/` when there is one, the ADRs
+      otherwise), with tool definitions in front of it. Two breakpoints: the
+      last system block for the static prefix (which covers the tools, since
+      they render first) and a rolling one on the newest user turn.
+      Reports per-turn counters, time-to-first-token, cost, and the cost the
+      same turn would have had uncached - derived from the counters
+      themselves (`input + created + read` is what an uncached request would
+      have billed), with `--replay-uncached` re-sending the recorded
+      transcript to check that arithmetic against the API and to supply an
+      uncached time-to-first-token to compare against.
+- [x] Extract the reusable bits into `lib/prompt_caching/` -
+      `cache_control.py` (block/tool breakpoint helpers, the per-model
+      minimum-prefix table) and `usage.py` (`TokenUsage`, the write/read
+      multipliers, and cost vs. uncached-cost math against a price table).
+      `001`/`002` stay self-contained on purpose; `003` imports them.
+- [x] `README.md` for the unit, in the style of the other unit READMEs.
 
 ### Stage 5 - Model Context Protocol (todo)
 
@@ -185,7 +190,7 @@ for Stage 4's caching experiments. Has its own ADR log and staged roadmap.
 - [x] Size-based chunking
 - [x] Structure-based chunking
 - [x] Embeddings + in-memory vector store + semantic chunking
-- [ ] `search_documents` tool + REPL wiring (semantic-only)
+- [x] `search_documents` tool + REPL wiring (semantic-only)
 - [ ] Lexical indexing (BM25) + hybrid fusion (RRF)
 
 ## Layout
@@ -194,6 +199,7 @@ for Stage 4's caching experiments. Has its own ADR log and staged roadmap.
 lib/                     reusable code imported by units
   ai_generation/         MessageList + chat helpers
   anthropic_adapter/     ChatPort/ToolPort structural interfaces
+  prompt_caching/        cache_control block builders + usage/cost reporting
   repl/                  client-agnostic REPL loop
 src/                     one directory per unit (see src/README.md)
 ```
