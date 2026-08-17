@@ -158,12 +158,14 @@ Planned steps:
 builds its input layer on `prompt_toolkit`). The first two are prerequisites
 for this stage; the rest are polish:
 
-- [ ] Line editing and history. `run_repl` calls bare `input()`, and CPython
-      only routes that through GNU readline when the `readline` module has
-      been imported - which we never do, so arrow keys inject raw escape
-      sequences into the message and there is no history, cursor movement, or
-      word-delete. Importing `readline` in `lib/repl/repl.py` is the whole
-      fix; nothing here is MCP-specific.
+- [x] Line editing and history. `lib/repl/repl.py` imports `readline` for its
+      side effect - CPython only routes `input()` through GNU readline once
+      that module has been imported - and passes the prompt to `input("?> ")`
+      rather than printing it first, so readline emits the prompt itself and
+      knows its width when it redraws. `lib/repl/stubbed_chat_smoke_test.py`
+      drives the REPL against an echo `ChatPort`: run it plain for an
+      interactive REPL that costs no tokens, or with `--check` for a
+      pty-driven assertion that the up arrow still recalls the previous line.
 - [ ] A hook for the two MCP input syntaxes. `run_repl` sends every line
       verbatim as one user message, so there is nowhere for `@resource`
       mentions (read the resource, inject its content as context) or

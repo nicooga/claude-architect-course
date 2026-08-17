@@ -2,6 +2,16 @@ from typing import Optional
 from lib.ai_generation import MessageList
 from .ports import ChatPort
 
+# Importing readline is the whole mechanism behind line editing: CPython
+# swaps in the GNU readline implementation of input() as an import side
+# effect, which is what gives arrow-key history, cursor movement and
+# word-delete. Nothing below references the module, so the import reads as
+# unused — it isn't. Absent on Windows, where input() stays as it was.
+try:
+    import readline  # noqa: F401  (imported for its side effect)
+except ImportError:
+    pass
+
 
 def run_repl(
     chat: ChatPort,
@@ -15,8 +25,11 @@ def run_repl(
 
     try:
         while True:
-            print("?> ", end="")
-            messages.add_user_message(input())
+            # The prompt goes through input() rather than a preceding print()
+            # so readline emits it itself and knows its width. Otherwise every
+            # redraw — recalling a line from history, Ctrl+L — miscounts the
+            # columns and leaves the prompt garbled.
+            messages.add_user_message(input("?> "))
 
             try:
                 answer = chat.send(messages)
