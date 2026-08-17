@@ -154,6 +154,39 @@ Planned steps:
       Anthropic's server-side MCP connector) in the unit README.
 - [ ] `README.md` for the unit.
 
+`lib/repl` gaps against the course's reference CLI (`cli_project`, which
+builds its input layer on `prompt_toolkit`). The first two are prerequisites
+for this stage; the rest are polish:
+
+- [ ] Line editing and history. `run_repl` calls bare `input()`, and CPython
+      only routes that through GNU readline when the `readline` module has
+      been imported - which we never do, so arrow keys inject raw escape
+      sequences into the message and there is no history, cursor movement, or
+      word-delete. Importing `readline` in `lib/repl/repl.py` is the whole
+      fix; nothing here is MCP-specific.
+- [ ] A hook for the two MCP input syntaxes. `run_repl` sends every line
+      verbatim as one user message, so there is nowhere for `@resource`
+      mentions (read the resource, inject its content as context) or
+      `/prompt arg` commands (fetch the server-authored `PromptMessage`s and
+      splice them into the history, bypassing the user-turn wrapper) to live.
+      An optional line-preprocessor argument on `run_repl` covers both. This
+      is an abstraction gap, not a UX one - it exists independently of any
+      completion UI.
+- [ ] (optional) Tab completion over the server's primitives: `/` opens a
+      menu of prompts with their descriptions, `@` opens a menu of resource
+      ids, the argument position after `/prompt ` completes resource ids, and
+      ghost text hints the prompt's first argument name. Costs a
+      `prompt_toolkit` dependency plus a rewrite of the input layer, and
+      `001_mcp_client.py` printing the server's inventory already covers
+      discoverability. Two things to fix rather than copy if we do build it:
+      the reference's completer treats its resource list as `list[str]` in
+      the `@` branch but as dicts in the argument-position branch, so
+      `/summarize dep<TAB>` silently yields nothing; and its space keybinding
+      decides whether an argument is expected by sniffing for `doc`/`file`/`id`
+      in the typed value, when MCP's `Prompt.arguments` states it outright.
+- [ ] (optional) Ctrl+C cancels an in-flight request instead of exiting the
+      loop, and styled prompt / completion-menu colors.
+
 ### Stage 6 - Agent Skills (todo)
 
 `src/agent_skills/` (to create)
