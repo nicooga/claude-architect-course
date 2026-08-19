@@ -8,9 +8,10 @@ and are meant to be read/run roughly in this order:
 2. [`prompt_engineering/`](prompt_engineering/README.md)
 3. [`tool_usage/`](tool_usage/README.md)
 4. [`prompt_caching/`](prompt_caching/README.md)
-5. `mcp/` (planned)
-6. `agent_skills/` (planned)
-7. [`rag/`](rag/README.md) (optional exploration)
+5. `mcp_server/` (planned)
+6. `mcp_client/` (planned)
+7. `agent_skills/` (planned)
+8. [`rag/`](rag/README.md) (optional exploration)
 
 See the [root README](../README.md) for how these units map to the Claude
 Architect Certification Exam content and for the plan behind the planned

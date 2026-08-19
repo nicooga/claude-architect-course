@@ -25,25 +25,25 @@ Required/recommended content and where it lives in this repo.
 | Features of Claude: Prompt Caching | [Stage 4](#stage-4--prompt-caching-done) | Done |
 | Features of Claude: Rules of Prompt Caching | [Stage 4](#stage-4--prompt-caching-done) | Done |
 | Features of Claude: Prompt Caching in Action | [Stage 4](#stage-4--prompt-caching-done) | Done |
-| Model Context Protocol | [Stage 5](#stage-5--model-context-protocol-todo) | To do |
+| Model Context Protocol | [Stage 5](#stage-5--mcp-server-todo), [Stage 6](#stage-6--mcp-client-todo) | To do |
 
 ### Course: Introduction to Agent Skills
 
 | Required topic | Stage | Status |
 | --- | --- | --- |
-| Agent Skills (authoring, structure, progressive disclosure, invocation) | [Stage 6](#stage-6--agent-skills-todo) | To do |
+| Agent Skills (authoring, structure, progressive disclosure, invocation) | [Stage 7](#stage-7--agent-skills-todo) | To do |
 
 ### Extra (not required for the exam)
 
 | Topic | Stage | Status |
 | --- | --- | --- |
 | Prompt engineering + evaluation pipeline | [Stage 2](#stage-2--prompt-engineering-and-evaluation-done) | Done |
-| RAG (chunking, embeddings, vector search, hybrid retrieval) | [Stage 7](#stage-7--rag-optional-exploration-in-progress) | In progress |
+| RAG (chunking, embeddings, vector search, hybrid retrieval) | [Stage 8](#stage-8--rag-optional-exploration-in-progress) | In progress |
 
 ## Stages
 
 Ordered so each stage can lean on the one before it. Stages 1-4 are done;
-5-6 are the remaining required work; 7 is personal exploration and can be
+5-7 are the remaining required work; 8 is personal exploration and can be
 picked up or dropped at any point.
 
 ### Stage 1 - Accessing Claude with the API (done)
@@ -130,35 +130,103 @@ in this repo. First unit to depend on `lib/prompt_caching`.
       `001`/`002` stay self-contained on purpose; `003` imports them.
 - [x] `README.md` for the unit, in the style of the other unit READMEs.
 
-### Stage 5 - Model Context Protocol (todo)
+### Stage 5 - MCP server (todo)
 
-`src/mcp/` (to create)
+`src/mcp_server/` (to create)
 
-Ties directly back to Stage 3: MCP is the standardized transport for the
-same tool-use loop, with the tools living outside the process.
+The server half, on its own. Building it first means Stage 6 starts against a
+counterparty already known to work: a server can be driven end to end by
+clients that exist today, so a failure there is a failure in the server rather
+than in a half-written client.
 
-Planned steps:
+- [ ] `server.py` - an MCP server over stdio exposing one of each primitive:
+      a couple of the Stage 3 tools (`get_current_datetime`, `set_reminder`)
+      so the before/after against the local implementations is direct, one
+      resource, one prompt whose `prompts/get` returns messages on both sides
+      of the conversation, and one tool that fails on purpose so an
+      `isError: true` result - a successful response reporting failure - is
+      visibly a different channel from a JSON-RPC error.
+- [ ] Drive it from clients that already work: `uv run mcp dev server.py` for
+      the MCP Inspector, and `claude mcp add` plus `/mcp` for Claude Code,
+      where the resource shows up as an `@` mention and the prompt as
+      `/mcp__<server>__<prompt>`. This is what covers resources and prompts
+      for the exam topic - `lib/repl` never has to grow an input syntax to
+      reach them.
+- [ ] Make it runnable over streamable HTTP as well as stdio
+      (`mcp run server.py --transport streamable-http`), so Stage 6 can
+      connect both ways without the server changing.
+- [ ] `README.md` for the unit - the three primitives and who controls each
+      (tools model-controlled, resources application-controlled, prompts
+      user-controlled), and what that split means for how a client has to
+      expose them.
 
-- [ ] `server/` - a small MCP server exposing a couple of the Stage 3 tools
-      (e.g. `get_current_datetime`, `set_reminder`) over stdio, so the
-      before/after against the local implementations is direct.
-- [ ] `001_mcp_client.py` - an MCP client that connects to the server,
-      lists tools/resources/prompts, and calls one, showing the protocol
-      primitives explicitly.
-- [ ] `002_mcp_repl.py` - bridge the MCP tool list into `lib/repl` via an
-      adapter that satisfies the existing `ToolPort`, proving the REPL does
-      not care whether a tool is local or remote.
-- [ ] `lib/mcp_adapter/` - the MCP-to-`ToolPort` adapter, mirroring how
-      `lib/anthropic_adapter` is structured.
-- [ ] Note the connection-mode differences (stdio vs. remote/HTTP, and
-      Anthropic's server-side MCP connector) in the unit README.
+### Stage 6 - MCP client (todo)
+
+`src/mcp_client/` (to create)
+
+Ties directly back to Stage 3: MCP is the standardized transport for the same
+tool-use loop, with the tools living outside the process. Consumes the Stage 5
+server.
+
+- [ ] Async tool execution, first, in `lib/` with no MCP involved.
+      `ToolPort.execute` becomes `async def`, `ChatPort.send` and
+      `AnthropicChatAdapter.send` follow (on `AsyncAnthropic`), and
+      `run_repl` becomes a coroutine reading through
+      `await asyncio.to_thread(input, "?> ")` so the blocking read does not
+      stall the loop. MCP forces the question: `ClientSession.call_tool` is a
+      coroutine, and an stdio session is bound to the event loop that created
+      it, so the session has to outlive any single call. Async at the top
+      means one `asyncio.run` per entrypoint instead of a background loop
+      thread bridging into a sync `execute`, and `_run_tool` can then
+      `asyncio.gather` the `tool_use` blocks of one turn rather than running
+      them in sequence.
+- [ ] Blast radius of that refactor: five tools under `src/tool_usage/tools/`
+      and `src/rag/tools/`, the three `run_repl` callers, and the `EchoChat`
+      stub. `src/prompt_caching/003_cache_in_action.py` runs its own tool loop
+      and is unaffected. `lib/repl/stubbed_chat_smoke_test.py --check`
+      confirms the REPL still works afterwards without spending tokens.
+- [ ] `001_mcp_client.py` - drives the protocol directly with the SDK and no
+      `lib/` code: `initialize`, then `tools/list` / `resources/list` /
+      `prompts/list`, then one `tools/call`, one `resources/read`, and one
+      `prompts/get` with the returned `PromptMessage`s printed with their
+      roles visible - the role-tagged multi-turn return is what separates an
+      MCP prompt from a local skill. Calls the failing tool too, so both
+      error channels show up side by side.
+- [ ] `lib/mcp_adapter/` - extracts the tool half into an MCP-backed
+      `ToolPort`, mirroring how `lib/anthropic_adapter` is structured.
+      Flattens the `CallToolResult.content` blocks into the `str` that
+      `execute` returns, and maps `isError: true` onto the same `is_error`
+      tool result the adapter already builds for exceptions. `ToolPort` has
+      no setup/teardown slot, so the caller owns the session lifecycle
+      (`async with`). `001` stays self-contained on purpose, the same way
+      `001`/`002` do in Stage 4.
+- [ ] `002_mcp_repl.py` - the Stage 3 REPL with its tool list built from the
+      server instead of from imports, proving the REPL does not care whether
+      a tool is local or remote. Prints the `tools` request parameter for a
+      local `set_reminder` next to the MCP-backed one: identical JSON is the
+      claim the whole stage rests on, that the model cannot tell where a tool
+      lives.
+- [ ] `003_mcp_transports.py` - the Stage 5 server over stdio and over
+      streamable HTTP, with an identical `tools/list` across both, then the
+      same request through Anthropic's server-side connector (the
+      `mcp_servers` parameter), where the reply comes back as `mcp_tool_use`
+      / `mcp_tool_result` blocks and the client executes nothing. The one
+      case where the model's view does differ, and the direct parallel to
+      Stage 3's client-executed vs. server-executed contrast.
+- [ ] `004_mcp_cache_invalidation.py` - tool definitions ride along on every
+      request and render first in the prefix, so a `list_changed`
+      notification that refreshes them invalidates the system prompt and the
+      whole history with them. Self-verifying in the style of
+      `002_cache_rules.py`: cache, send, trigger the change, send again, and
+      check that `cache_creation_input_tokens` went back to full.
 - [ ] `README.md` for the unit.
 
 `lib/repl` gaps against the course's reference CLI (`cli_project`, which
-builds its input layer on `prompt_toolkit`). None of these block the stage:
-the steps above bridge MCP tools into the existing `ToolPort`, and tools are
-model-controlled, so nothing about them reaches the input layer. Everything
-here is quality of life:
+builds its input layer on `prompt_toolkit`). None of these block the stage: the
+steps above bridge MCP tools into the existing `ToolPort`, and tools are
+model-controlled, so nothing about them reaches the input layer, while
+resources and prompts are exercised in Stage 5 through clients that already
+render them. Everything here is quality of life:
 
 - [x] Line editing and history. `lib/repl/repl.py` imports `readline` for its
       side effect - CPython only routes `input()` through GNU readline once
@@ -196,7 +264,7 @@ here is quality of life:
       decides whether an argument is expected by sniffing for `doc`/`file`/`id`
       in the typed value, when MCP's `Prompt.arguments` states it outright.
 
-### Stage 6 - Agent Skills (todo)
+### Stage 7 - Agent Skills (todo)
 
 `src/agent_skills/` (to create)
 
@@ -221,7 +289,7 @@ Planned steps:
       are shared.
 - [ ] `README.md` for the unit, including the authoring checklist.
 
-### Stage 7 - RAG (optional exploration, in progress)
+### Stage 8 - RAG (optional exploration, in progress)
 
 [`src/rag/`](src/rag/README.md)
 
