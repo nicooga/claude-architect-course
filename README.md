@@ -25,7 +25,7 @@ Required/recommended content and where it lives in this repo.
 | Features of Claude: Prompt Caching | [Stage 4](#stage-4--prompt-caching-done) | Done |
 | Features of Claude: Rules of Prompt Caching | [Stage 4](#stage-4--prompt-caching-done) | Done |
 | Features of Claude: Prompt Caching in Action | [Stage 4](#stage-4--prompt-caching-done) | Done |
-| Model Context Protocol | [Stage 5](#stage-5--mcp-server-todo), [Stage 6](#stage-6--mcp-client-todo) | To do |
+| Model Context Protocol | [Stage 5](#stage-5--mcp-server-done), [Stage 6](#stage-6--mcp-client-todo) | In progress |
 
 ### Course: Introduction to Agent Skills
 
@@ -42,8 +42,8 @@ Required/recommended content and where it lives in this repo.
 
 ## Stages
 
-Ordered so each stage can lean on the one before it. Stages 1-4 are done;
-5-7 are the remaining required work; 8 is personal exploration and can be
+Ordered so each stage can lean on the one before it. Stages 1-5 are done;
+6-7 are the remaining required work; 8 is personal exploration and can be
 picked up or dropped at any point.
 
 ### Stage 1 - Accessing Claude with the API (done)
@@ -130,35 +130,55 @@ in this repo. First unit to depend on `lib/prompt_caching`.
       `001`/`002` stay self-contained on purpose; `003` imports them.
 - [x] `README.md` for the unit, in the style of the other unit READMEs.
 
-### Stage 5 - MCP server (todo)
+### Stage 5 - MCP server (done)
 
-`src/mcp_server/` (to create)
+[`src/mcp_server/`](src/mcp_server/README.md)
 
 The server half, on its own. Building it first means Stage 6 starts against a
 counterparty already known to work: a server can be driven end to end by
 clients that exist today, so a failure there is a failure in the server rather
 than in a half-written client.
 
-- [ ] `server.py` - an MCP server over stdio exposing one of each primitive:
-      a couple of the Stage 3 tools (`get_current_datetime`, `set_reminder`)
-      so the before/after against the local implementations is direct, one
-      resource, one prompt whose `prompts/get` returns messages on both sides
-      of the conversation, and one tool that fails on purpose so an
-      `isError: true` result - a successful response reporting failure - is
-      visibly a different channel from a JSON-RPC error.
-- [ ] Drive it from clients that already work: `uv run mcp dev server.py` for
-      the MCP Inspector, and `claude mcp add` plus `/mcp` for Claude Code,
-      where the resource shows up as an `@` mention and the prompt as
-      `/mcp__<server>__<prompt>`. This is what covers resources and prompts
-      for the exam topic - `lib/repl` never has to grow an input syntax to
-      reach them.
-- [ ] Make it runnable over streamable HTTP as well as stdio
-      (`mcp run server.py --transport streamable-http`), so Stage 6 can
-      connect both ways without the server changing.
-- [ ] `README.md` for the unit - the three primitives and who controls each
+- [x] `lib/reminders/` - the reminders domain, extracted so Stage 3's
+      `ToolPort` classes and the MCP server share one implementation and
+      cannot drift: `datetimes.py` (`now_iso`, `add_duration`) and `store.py`
+      (`Reminder`, plus an in-memory and a JSON-file store behind the same
+      shape). Stage 3 keeps process-local state; the server takes the file,
+      because every stdio client spawns its own server process and
+      in-memory reminders would be invisible across clients.
+- [x] `server.py` - an MCP server exposing one of each primitive. Five tools:
+      all three Stage 3 reminder tools (the gaps travel together - without
+      `add_duration_to_datetime` the model is back to doing date arithmetic
+      in its head), plus `list_reminders` for the read side and
+      `delete_reminder`, which fails on an unknown id. One resource,
+      `reminders://all`, rendering the same state the tools write. One
+      prompt, `review_reminders(timeframe)`, whose `prompts/get` returns a
+      user turn and a server-authored *assistant* turn.
+- [x] Schemas come from type annotations and docstrings rather than the
+      hand-written `input_schema` dicts of Stage 3, and the result is the
+      same tool definition - the correspondence Stage 6's central claim
+      rests on.
+- [x] The two error channels, measured rather than assumed. A tool error is a
+      successful response carrying `isError: true`; a JSON-RPC error means
+      the call never reached a tool. The split is not where you would guess:
+      `tools/call` returns `isError: true` even for an unknown tool name or a
+      missing required argument, while `prompts/get` and `resources/read`
+      raise properly for an unknown name or URI. Anything reaching the model
+      is something the model might recover from.
+- [x] Driven end to end by clients that already work: `uv run mcp dev
+      src/mcp_server/server.py` for the MCP Inspector, and `claude mcp add`
+      plus `/mcp` for Claude Code, where the resource shows up as an `@`
+      mention and the prompt as `/mcp__<server>__<prompt>`. This is what
+      covers resources and prompts for the exam topic - `lib/repl` never has
+      to grow an input syntax to reach them.
+- [x] Runnable over streamable HTTP as well as stdio
+      (`mcp run src/mcp_server/server.py --transport streamable-http`), with
+      an identical `tools/list` across both, so Stage 6 can connect either way
+      without the server changing.
+- [x] `README.md` for the unit - the three primitives and who controls each
       (tools model-controlled, resources application-controlled, prompts
-      user-controlled), and what that split means for how a client has to
-      expose them.
+      user-controlled), what that split means for how a client has to expose
+      them, and the manual test script for the Inspector and Claude Code.
 
 ### Stage 6 - MCP client (todo)
 
@@ -310,6 +330,7 @@ lib/                     reusable code imported by units
   ai_generation/         MessageList + chat helpers
   anthropic_adapter/     ChatPort/ToolPort structural interfaces
   prompt_caching/        cache_control block builders + usage/cost reporting
+  reminders/             reminder store + date helpers, shared by Stage 3 and 5
   repl/                  client-agnostic REPL loop
 src/                     one directory per unit (see src/README.md)
 ```

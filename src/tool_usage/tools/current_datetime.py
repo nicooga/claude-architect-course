@@ -1,5 +1,6 @@
-from datetime import datetime, timezone
 from typing import Any, Dict
+
+from lib.reminders import now_iso
 
 
 class CurrentDateTimeTool:
@@ -15,4 +16,4 @@ class CurrentDateTimeTool:
     input_schema: Dict[str, Any] = {"type": "object", "properties": {}, "required": []}
 
     def execute(self, tool_input: Dict[str, Any]) -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return now_iso()

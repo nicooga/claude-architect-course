@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
 from typing import Any, Dict
+
+from lib.reminders import add_duration
 
 
 class AddDurationToDateTimeTool:
@@ -29,11 +30,12 @@ class AddDurationToDateTimeTool:
     }
 
     def execute(self, tool_input: Dict[str, Any]) -> str:
-        start = datetime.fromisoformat(tool_input["datetime"])
-        delta = timedelta(
+        # `or 0` because an explicit null for an omitted offset is a shape
+        # the model does produce, and timedelta will not take None.
+        return add_duration(
+            tool_input["datetime"],
             weeks=tool_input.get("weeks", 0) or 0,
             days=tool_input.get("days", 0) or 0,
             hours=tool_input.get("hours", 0) or 0,
             minutes=tool_input.get("minutes", 0) or 0,
         )
-        return (start + delta).isoformat()

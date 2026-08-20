@@ -1,16 +1,16 @@
-from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-
-@dataclass
-class Reminder:
-    message: str
-    datetime: str
+from lib.reminders import InMemoryReminderStore, Reminder, ReminderStore
 
 
 class SetReminderTool:
     """The actual side effect: recording a reminder in the system (README
-    gap #3). Implements ToolPort structurally — no inheritance needed."""
+    gap #3). Implements ToolPort structurally — no inheritance needed.
+
+    The store is injected so the same tool can be backed by process-local
+    state here and by the JSON file the Stage 5 MCP server shares across
+    client processes.
+    """
 
     name = "set_reminder"
     description = (
@@ -34,10 +34,15 @@ class SetReminderTool:
         "required": ["message", "datetime"],
     }
 
-    def __init__(self) -> None:
-        self.reminders: List[Reminder] = []
+    def __init__(self, store: Optional[ReminderStore] = None) -> None:
+        self.store: ReminderStore = store if store is not None else InMemoryReminderStore()
+
+    @property
+    def reminders(self) -> List[Reminder]:
+        return self.store.list()
 
     def execute(self, tool_input: Dict[str, Any]) -> str:
-        reminder = Reminder(message=tool_input["message"], datetime=tool_input["datetime"])
-        self.reminders.append(reminder)
+        reminder = self.store.add(
+            message=tool_input["message"], datetime=tool_input["datetime"]
+        )
         return f"Reminder set for {reminder.datetime}: {reminder.message}"

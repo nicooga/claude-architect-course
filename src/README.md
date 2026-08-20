@@ -8,7 +8,7 @@ and are meant to be read/run roughly in this order:
 2. [`prompt_engineering/`](prompt_engineering/README.md)
 3. [`tool_usage/`](tool_usage/README.md)
 4. [`prompt_caching/`](prompt_caching/README.md)
-5. `mcp_server/` (planned)
+5. [`mcp_server/`](mcp_server/README.md)
 6. `mcp_client/` (planned)
 7. `agent_skills/` (planned)
 8. [`rag/`](rag/README.md) (optional exploration)
@@ -19,8 +19,9 @@ units.
 
 Shared, reusable code (the `MessageList` helper, the Anthropic chat adapter,
 the generic REPL loop, the prompt-caching block builders and usage/cost
-reporting) lives outside `src/`, in [`lib/`](../lib), and is imported by later
-units instead of being copy-pasted forward.
+reporting, the reminder store and date helpers) lives outside `src/`, in
+[`lib/`](../lib), and is imported by later units instead of being copy-pasted
+forward.
 
 Run any module from the project root with `uv`, e.g.:
 
@@ -75,6 +76,23 @@ counterfactual. First unit to depend on `lib.prompt_caching`.
 
 See [`prompt_caching/README.md`](prompt_caching/README.md) for the write-up,
 the placement pattern, and the measured results.
+
+## `mcp_server/`
+
+Publishes the `tool_usage/` reminders project over the Model Context Protocol,
+so the same capabilities stop being Python objects passed to an adapter and
+become something any client can discover. One of each primitive, chosen to
+make the split visible: five tools (model-controlled), the
+`reminders://all` resource (application-controlled) reading exactly the state
+the tools write, and a `review_reminders` prompt (user-controlled) that
+returns a server-authored assistant turn alongside the user one. Driven from
+the MCP Inspector and Claude Code rather than from a client of ours, which is
+what keeps resources and prompts out of `lib/repl`'s input layer. The domain
+logic is shared with Stage 3 through `lib.reminders`, and the tool schemas are
+derived from annotations instead of hand-written.
+
+See [`mcp_server/README.md`](mcp_server/README.md) for the primitive/control
+table, the two error channels, and the manual test script.
 
 ## `rag/`
 
