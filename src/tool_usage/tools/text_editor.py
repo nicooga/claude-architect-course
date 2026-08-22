@@ -19,7 +19,7 @@ class TextEditorTool:
         self.root_dir = Path(root_dir).resolve()
         self.root_dir.mkdir(parents=True, exist_ok=True)
 
-    def execute(self, tool_input: Dict[str, Any]) -> str:
+    async def execute(self, tool_input: Dict[str, Any]) -> str:
         command = tool_input["command"]
         path = self._resolve(tool_input["path"])
 

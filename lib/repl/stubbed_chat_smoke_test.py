@@ -17,6 +17,7 @@ a terminal - piping lines into the REPL exercises none of this and would pass
 whether or not `lib/repl/repl.py` still imports `readline`.
 """
 
+import asyncio
 import os
 import pty
 import sys
@@ -39,7 +40,7 @@ CTRL_D = b"\x04"
 class EchoChat:
     """A `ChatPort` that answers from inside the process."""
 
-    def send(self, messages: MessageList) -> str:
+    async def send(self, messages: MessageList) -> str:
         return f"echo: {messages[-1]['content']}"
 
 
@@ -118,7 +119,7 @@ def check() -> int:
 
 
 def interactive() -> None:
-    run_repl(EchoChat())
+    asyncio.run(run_repl(EchoChat()))
 
 
 def main(argv: Optional[list[str]] = None) -> int:

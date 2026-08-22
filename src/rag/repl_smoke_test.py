@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import json
 import logging
 import sys
@@ -45,7 +46,7 @@ def _sources(strategy_name: str) -> str:
     return ", ".join(manifest.get("sources", [])) or "none"
 
 
-def main() -> None:
+async def main() -> None:
     parser = argparse.ArgumentParser(
         description="REPL over the RAG index, with search_documents wired in."
     )
@@ -64,8 +65,8 @@ def main() -> None:
         max_tokens=2000,
         tools=[SearchDocumentsTool(store)],
     )
-    run_repl(chat)
+    await run_repl(chat)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

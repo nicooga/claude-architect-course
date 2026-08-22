@@ -50,7 +50,7 @@ class SearchDocumentsTool:
     def __init__(self, store: VectorStorePort) -> None:
         self._store = store
 
-    def execute(self, tool_input: Dict[str, Any]) -> str:
+    async def execute(self, tool_input: Dict[str, Any]) -> str:
         query = tool_input["query"]
         top_k = min(int(tool_input.get("top_k") or DEFAULT_TOP_K), MAX_TOP_K)
 

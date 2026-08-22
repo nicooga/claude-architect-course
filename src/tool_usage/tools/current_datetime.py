@@ -15,5 +15,5 @@ class CurrentDateTimeTool:
     )
     input_schema: Dict[str, Any] = {"type": "object", "properties": {}, "required": []}
 
-    def execute(self, tool_input: Dict[str, Any]) -> str:
+    async def execute(self, tool_input: Dict[str, Any]) -> str:
         return now_iso()

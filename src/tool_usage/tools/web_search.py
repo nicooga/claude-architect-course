@@ -15,5 +15,5 @@ class WebSearchTool:
     description = ""
     input_schema: Dict[str, Any] = {}
 
-    def execute(self, tool_input: Dict[str, Any]) -> NoReturn:
+    async def execute(self, tool_input: Dict[str, Any]) -> NoReturn:
         raise NotImplementedError("web_search is executed server-side by Anthropic")

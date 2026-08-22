@@ -188,7 +188,7 @@ Ties directly back to Stage 3: MCP is the standardized transport for the same
 tool-use loop, with the tools living outside the process. Consumes the Stage 5
 server.
 
-- [ ] Async tool execution, first, in `lib/` with no MCP involved.
+- [x] Async tool execution, first, in `lib/` with no MCP involved.
       `ToolPort.execute` becomes `async def`, `ChatPort.send` and
       `AnthropicChatAdapter.send` follow (on `AsyncAnthropic`), and
       `run_repl` becomes a coroutine reading through
@@ -200,7 +200,7 @@ server.
       thread bridging into a sync `execute`, and `_run_tool` can then
       `asyncio.gather` the `tool_use` blocks of one turn rather than running
       them in sequence.
-- [ ] Blast radius of that refactor: five tools under `src/tool_usage/tools/`
+- [x] Blast radius of that refactor: five tools under `src/tool_usage/tools/`
       and `src/rag/tools/`, the three `run_repl` callers, and the `EchoChat`
       stub. `src/prompt_caching/003_cache_in_action.py` runs its own tool loop
       and is unaffected. `lib/repl/stubbed_chat_smoke_test.py --check`

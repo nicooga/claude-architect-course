@@ -1,6 +1,7 @@
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional, cast
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 from anthropic.types import Message, TextBlock, ToolResultBlockParam, ToolUnionParam, ToolUseBlock
 from lib.ai_generation import MessageList
 from .ports import ToolPort
@@ -30,7 +31,7 @@ class AnthropicChatAdapter:
         max_tokens: int = 1000,
         tools: Optional[List[ToolPort]] = None,
     ):
-        self._client = Anthropic()
+        self._client = AsyncAnthropic()
         self._system = system
         self._model = model
         self._max_tokens = max_tokens
@@ -39,7 +40,7 @@ class AnthropicChatAdapter:
         self._tools: Dict[str, ToolPort] = {tool.name: tool for tool in tools}
         self._tool_params: List[ToolUnionParam] = [_to_tool_param(tool) for tool in tools]
 
-    def send(self, messages: MessageList) -> str:
+    async def send(self, messages: MessageList) -> str:
         params: Dict[str, Any] = {
             "model": self._model,
             "max_tokens": self._max_tokens,
@@ -50,25 +51,31 @@ class AnthropicChatAdapter:
         if self._tool_params:
             params["tools"] = self._tool_params
 
-        response = self._client.messages.create(**params)
+        response = await self._client.messages.create(**params)
 
         while response.stop_reason == "tool_use":
             messages.add_assistant_blocks(response.content)
 
-            tool_results: List[ToolResultBlockParam] = [
-                self._run_tool(block)
-                for block in response.content
-                if isinstance(block, ToolUseBlock)
-            ]
+            # One turn can carry several tool_use blocks (Claude batching
+            # independent calls); gather runs them concurrently instead of
+            # awaiting them one at a time, and preserves the blocks' order in
+            # the result regardless of which one finishes first.
+            tool_results: List[ToolResultBlockParam] = await asyncio.gather(
+                *(
+                    self._run_tool(block)
+                    for block in response.content
+                    if isinstance(block, ToolUseBlock)
+                )
+            )
             messages.add_tool_results(tool_results)
 
             # params["messages"] is the same MessageList object we just
             # mutated above, so the next call picks it up automatically.
-            response = self._client.messages.create(**params)
+            response = await self._client.messages.create(**params)
 
         return _get_text(response)
 
-    def _run_tool(self, block: ToolUseBlock) -> ToolResultBlockParam:
+    async def _run_tool(self, block: ToolUseBlock) -> ToolResultBlockParam:
         call = _format_call(block.name, block.input)
         tool = self._tools.get(block.name)
         if tool is None:
@@ -81,7 +88,7 @@ class AnthropicChatAdapter:
             }
         logger.info("\n⏺ %s", call)
         try:
-            result = tool.execute(block.input)
+            result = await tool.execute(block.input)
         except Exception as e:
             logger.warning("  ⎿ Error: %s\n", e)
             return {"type": "tool_result", "tool_use_id": block.id, "content": f"Error: {e}", "is_error": True}

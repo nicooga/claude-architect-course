@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import sys
 import tempfile
@@ -13,7 +14,7 @@ from src.tool_usage.tools import (
 )
 
 
-def main() -> None:
+async def main() -> None:
     # stderr, not stdout, so tool-call logs don't interleave with the REPL's
     # "?> " prompt and answers on stdout. Bare message only — the ⏺/⎿ markers
     # in the log lines themselves carry the framing, same as an agent CLI.
@@ -37,8 +38,8 @@ def main() -> None:
             WebSearchTool(),
         ],
     )
-    run_repl(chat)
+    await run_repl(chat)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

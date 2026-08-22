@@ -29,7 +29,7 @@ class AddDurationToDateTimeTool:
         "required": ["datetime"],
     }
 
-    def execute(self, tool_input: Dict[str, Any]) -> str:
+    async def execute(self, tool_input: Dict[str, Any]) -> str:
         # `or 0` because an explicit null for an omitted offset is a shape
         # the model does produce, and timedelta will not take None.
         return add_duration(

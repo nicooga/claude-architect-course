@@ -41,7 +41,7 @@ class SetReminderTool:
     def reminders(self) -> List[Reminder]:
         return self.store.list()
 
-    def execute(self, tool_input: Dict[str, Any]) -> str:
+    async def execute(self, tool_input: Dict[str, Any]) -> str:
         reminder = self.store.add(
             message=tool_input["message"], datetime=tool_input["datetime"]
         )
