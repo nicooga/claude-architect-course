@@ -39,11 +39,12 @@ Required/recommended content and where it lives in this repo.
 | --- | --- | --- |
 | Prompt engineering + evaluation pipeline | [Stage 2](#stage-2--prompt-engineering-and-evaluation-done) | Done |
 | RAG (chunking, embeddings, vector search, hybrid retrieval) | [Stage 8](#stage-8--rag-optional-exploration-in-progress) | In progress |
+| Dynamic MCP registration (add remote/local servers at runtime) | [Stage 9](#stage-9--dynamic-mcp-registration-optional-exploration-not-started) | Not started |
 
 ## Stages
 
 Ordered so each stage can lean on the one before it. Stages 1-5 are done;
-6-7 are the remaining required work; 8 is personal exploration and can be
+6-7 are the remaining required work; 8-9 are personal exploration and can be
 picked up or dropped at any point.
 
 ### Stage 1 - Accessing Claude with the API (done)
@@ -212,14 +213,19 @@ server.
       roles visible - the role-tagged multi-turn return is what separates an
       MCP prompt from a local skill. Calls the failing tool too, so both
       error channels show up side by side.
-- [ ] `lib/mcp_adapter/` - extracts the tool half into an MCP-backed
+- [x] `lib/mcp_adapter/` - extracts the tool half into an MCP-backed
       `ToolPort`, mirroring how `lib/anthropic_adapter` is structured.
       Flattens the `CallToolResult.content` blocks into the `str` that
       `execute` returns, and maps `isError: true` onto the same `is_error`
-      tool result the adapter already builds for exceptions. `ToolPort` has
-      no setup/teardown slot, so the caller owns the session lifecycle
-      (`async with`). `001` stays self-contained on purpose, the same way
-      `001`/`002` do in Stage 4.
+      tool result the adapter already builds for exceptions - by raising,
+      since `execute` only has a success return value to work with, and
+      `AnthropicChatAdapter._run_tool`'s existing exception handling then
+      builds the identical result. `ToolPort` has no setup/teardown slot, so
+      the caller owns the session lifecycle (`async with`). `001` stays
+      self-contained on purpose, the same way `001`/`002` do in Stage 4.
+      `mcp_tools(session)` lists a server's tools and wraps each one, ready
+      for `AnthropicChatAdapter(tools=...)` - what `002_mcp_repl.py` needs
+      next.
 - [ ] `002_mcp_repl.py` - the Stage 3 REPL with its tool list built from the
       server instead of from imports, proving the REPL does not care whether
       a tool is local or remote. Prints the `tools` request parameter for a
@@ -323,12 +329,28 @@ for Stage 4's caching experiments. Has its own ADR log and staged roadmap.
 - [x] `search_documents` tool + REPL wiring (semantic-only)
 - [ ] Lexical indexing (BM25) + hybrid fusion (RRF)
 
+### Stage 9 - Dynamic MCP registration (optional exploration, not started)
+
+`src/mcp_client/` (extends Stage 6, to create)
+
+Not required for the exam. Stage 6 wraps one MCP server that's already known
+when the client starts (`lib/mcp_adapter.mcp_tools(session)` against an
+already-open `ClientSession`). The idea here is a Claude-Code-style surface
+for adding a server to an already-running chat: an in-code API
+(`chat.add_remote_mcp(name, url)` / `chat.add_local_mcp(name, command)`) and/or
+a CLI verb (`mychat mcp add ...`), so the tool list a `ChatPort` exposes can
+grow after construction instead of being fixed at startup. No design work has
+started - `AnthropicChatAdapter` currently freezes `self._tools` in
+`__init__`, so this would need that to become mutable, plus somewhere to keep
+the opened sessions alive for the process lifetime.
+
 ## Layout
 
 ```
 lib/                     reusable code imported by units
   ai_generation/         MessageList + chat helpers
   anthropic_adapter/     ChatPort/ToolPort structural interfaces
+  mcp_adapter/           MCP tools wrapped as ToolPort
   prompt_caching/        cache_control block builders + usage/cost reporting
   reminders/             reminder store + date helpers, shared by Stage 3 and 5
   repl/                  client-agnostic REPL loop
