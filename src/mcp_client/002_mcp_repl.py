@@ -5,8 +5,16 @@ server instead of from local imports.
 Stage 5 reminders server through lib/mcp_adapter's ToolPort wrapper and
 lib/repl's run_repl — the Stage 3 REPL, unmodified, now talking to a remote
 tool set instead of local `src/tool_usage/tools` classes. Not both at once:
-that would just duplicate the same five reminder tools under two names and
-give the model two ways to do the same thing.
+that would just duplicate the same reminder tools under two names and give
+the model two ways to do the same thing.
+
+One deliberate exception: `get_user_utc_offset` is added locally alongside
+the five MCP-backed tools, not fetched from the server. The reminders
+server's `get_current_datetime` requires an explicit UTC offset and has no
+way to source one itself — a server has no legitimate way to know what
+machine its caller is on, so that has to come from a tool that runs where
+the user actually is. `src/tool_usage/tools/get_user_utc_offset.py` is that
+tool, reused here unchanged from Stage 3.
 
 The claim the whole stage rests on — Claude cannot tell where a tool lives —
 gets checked before the REPL even starts, by diffing the `tools` request
@@ -39,7 +47,7 @@ from mcp.client.stdio import stdio_client
 from lib.anthropic_adapter import AnthropicChatAdapter, ToolPort
 from lib.mcp_adapter import mcp_tools
 from lib.repl import run_repl
-from src.tool_usage.tools import SetReminderTool
+from src.tool_usage.tools import GetUserUTCOffsetTool, SetReminderTool
 
 SERVER_PATH = Path(__file__).parent.parent / "mcp_server" / "server.py"
 
@@ -83,7 +91,10 @@ async def main() -> None:
     logging.basicConfig(level=logging.INFO, stream=sys.stderr, format="%(message)s")
 
     async with reminders_session() as session:
-        tools = await mcp_tools(session)
+        # get_user_utc_offset has no server-side counterpart — see the
+        # module docstring — so it's the one local ToolPort mixed into an
+        # otherwise MCP-built list.
+        tools = (await mcp_tools(session)) + [GetUserUTCOffsetTool()]
         by_name = {tool.name: tool for tool in tools}
 
         banner("tools request parameter: local vs. MCP-backed set_reminder")

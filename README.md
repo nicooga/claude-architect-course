@@ -85,10 +85,15 @@ reminder), then contrasts client-executed with server-executed tools. First
 unit to depend on `lib/anthropic_adapter` (`ToolPort`/`ChatPort`) and
 `lib/repl`.
 
-- [x] `get_current_datetime`, `add_duration_to_datetime`, `set_reminder` - client-executed custom tools
+- [x] `get_user_utc_offset`, `get_current_datetime`, `add_duration_to_datetime`,
+      `set_reminder` - client-executed custom tools. `get_current_datetime`
+      requires an explicit `utc_offset_hours`, no default: "today"/"tomorrow"
+      depend on the caller's calendar day, not UTC's, and only
+      `get_user_utc_offset` - which reads this machine's own clock - has any
+      business supplying one.
 - [x] `str_replace_based_edit_tool` - built-in, schema-less, client-executed
 - [x] `web_search` - built-in, fully server-executed
-- [x] `repl_smoke_test.py` - all five tools wired into an interactive REPL
+- [x] `repl_smoke_test.py` - all six tools wired into an interactive REPL
 
 ### Stage 4 - Prompt caching (done)
 
@@ -148,10 +153,14 @@ than in a half-written client.
       because every stdio client spawns its own server process and
       in-memory reminders would be invisible across clients.
 - [x] `server.py` - an MCP server exposing one of each primitive. Five tools:
-      all three Stage 3 reminder tools (the gaps travel together - without
-      `add_duration_to_datetime` the model is back to doing date arithmetic
-      in its head), plus `list_reminders` for the read side and
-      `delete_reminder`, which fails on an unknown id. One resource,
+      three of Stage 3's four reminder tools (the gaps travel together -
+      without `add_duration_to_datetime` the model is back to doing date
+      arithmetic in its head), plus `list_reminders` for the read side and
+      `delete_reminder`, which fails on an unknown id. `get_user_utc_offset`
+      is deliberately not among them - a server has no legitimate way to know
+      what machine its caller is on, so `get_current_datetime` here requires
+      an explicit `utc_offset_hours` with no default rather than guessing
+      from its own host. One resource,
       `reminders://all`, rendering the same state the tools write. One
       prompt, `review_reminders(timeframe)`, whose `prompts/get` returns a
       user turn and a server-authored *assistant* turn.
@@ -201,7 +210,7 @@ server.
       thread bridging into a sync `execute`, and `_run_tool` can then
       `asyncio.gather` the `tool_use` blocks of one turn rather than running
       them in sequence.
-- [x] Blast radius of that refactor: five tools under `src/tool_usage/tools/`
+- [x] Blast radius of that refactor: six tools under `src/tool_usage/tools/`
       and `src/rag/tools/`, the three `run_repl` callers, and the `EchoChat`
       stub. `src/prompt_caching/003_cache_in_action.py` runs its own tool loop
       and is unaffected. `lib/repl/stubbed_chat_smoke_test.py --check`
@@ -237,7 +246,10 @@ server.
       required argument names, and each property's JSON type. That's the
       claim the whole stage rests on: not identical bytes, but nothing in
       the difference is something the model uses to tell a local tool from a
-      remote one.
+      remote one. Its tool list is the five MCP-backed reminder tools plus
+      one local one, `GetUserUTCOffsetTool` - the exception to "instead of,
+      not alongside": it has no server-side counterpart to duplicate, since
+      only a client tool can answer "what timezone is the user in."
 - [ ] `003_mcp_transports.py` - the Stage 5 server over stdio and over
       streamable HTTP, with an identical `tools/list` across both, then the
       same request through Anthropic's server-side connector (the

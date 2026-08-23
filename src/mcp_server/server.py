@@ -60,11 +60,15 @@ mcp = MCPServer(
 
 
 @mcp.tool()
-def get_current_datetime() -> str:
-    """Returns the current date and time in ISO 8601 format (UTC). Use this
-    whenever you need to know 'now' — for example, as the starting point for
-    computing a relative date like 'a week from Thursday'."""
-    return now_iso()
+def get_current_datetime(utc_offset_hours: float) -> str:
+    """Returns the current date and time in ISO 8601 format at the given UTC
+    offset. Required, with no default: this server has no way to know the
+    caller's timezone on its own, and 'today'/'tomorrow' depend on the local
+    calendar day, which UTC and a user's offset can disagree about at any
+    given moment. Use this whenever you need to know 'now' - for example, as
+    the starting point for computing a relative date like 'a week from
+    Thursday'."""
+    return now_iso(utc_offset_hours=utc_offset_hours)
 
 
 @mcp.tool()

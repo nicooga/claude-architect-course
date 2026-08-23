@@ -8,6 +8,7 @@ from lib.anthropic_adapter import AnthropicChatAdapter
 from src.tool_usage.tools import (
     AddDurationToDateTimeTool,
     CurrentDateTimeTool,
+    GetUserUTCOffsetTool,
     SetReminderTool,
     TextEditorTool,
     WebSearchTool,
@@ -31,6 +32,7 @@ async def main() -> None:
             f"your working directory is {workdir} — read and write files there."
         ),
         tools=[
+            GetUserUTCOffsetTool(),
             CurrentDateTimeTool(),
             AddDurationToDateTimeTool(),
             SetReminderTool(),

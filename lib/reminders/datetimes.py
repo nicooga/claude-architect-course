@@ -11,9 +11,20 @@ call the same code and cannot drift apart.
 from datetime import datetime, timedelta, timezone
 
 
-def now_iso() -> str:
-    """The current instant in UTC, ISO 8601."""
-    return datetime.now(timezone.utc).isoformat()
+def now_iso(utc_offset_hours: float) -> str:
+    """The current instant, ISO 8601, expressed at the given UTC offset.
+
+    No default: "now" should mean the caller's clock, not Greenwich's, and
+    "today"/"tomorrow" depend on the local calendar day, which UTC and a
+    user's offset can disagree about at any given moment. This module is
+    shared by the Stage 3 local tools and the Stage 5 MCP server, and the
+    server has no legitimate way to know a caller's timezone on its own —
+    so the offset always has to come in from outside, not be guessed here.
+    See `src/tool_usage/tools/get_user_utc_offset.py` for how a client
+    discovers the value in the first place.
+    """
+    tz = timezone(timedelta(hours=utc_offset_hours))
+    return datetime.now(tz).isoformat()
 
 
 def add_duration(
