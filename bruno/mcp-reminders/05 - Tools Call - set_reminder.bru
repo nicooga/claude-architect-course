@@ -1,0 +1,30 @@
+meta {
+  name: 05 - Tools Call - set_reminder
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/mcp
+  body: json
+  auth: inherit
+}
+
+headers {
+  Mcp-Session-Id: {{mcpSessionId}}
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "tools/call",
+    "params": {
+      "name": "set_reminder",
+      "arguments": {
+        "message": "Test reminder set from Bruno",
+        "datetime": "2026-09-01T09:00:00Z"
+      }
+    }
+  }
+}

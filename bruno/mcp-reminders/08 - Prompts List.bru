@@ -1,0 +1,23 @@
+meta {
+  name: 08 - Prompts List
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/mcp
+  body: json
+  auth: inherit
+}
+
+headers {
+  Mcp-Session-Id: {{mcpSessionId}}
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 7,
+    "method": "prompts/list"
+  }
+}

@@ -1,0 +1,23 @@
+meta {
+  name: 06 - Resources List
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/mcp
+  body: json
+  auth: inherit
+}
+
+headers {
+  Mcp-Session-Id: {{mcpSessionId}}
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 5,
+    "method": "resources/list"
+  }
+}

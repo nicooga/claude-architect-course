@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "MCP Reminders Server",
+  "type": "collection",
+  "ignore": ["node_modules", ".git"]
+}

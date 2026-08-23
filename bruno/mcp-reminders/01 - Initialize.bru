@@ -1,0 +1,41 @@
+meta {
+  name: 01 - Initialize
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/mcp
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "{{mcpProtocolVersion}}",
+      "capabilities": {},
+      "clientInfo": { "name": "bruno-mcp-inspector", "version": "0.1.0" }
+    }
+  }
+}
+
+vars:pre-request {
+  baseUrl: http://127.0.0.1:8000
+}
+
+script:post-response {
+  // The response body is SSE-framed (event: message / data: {...}), not
+  // plain JSON, unless the server was run with json_response=True — this
+  // script only needs the header, so that doesn't matter here.
+  const sessionId = res.getHeader('mcp-session-id');
+  if (sessionId) {
+    bru.setVar('mcpSessionId', sessionId);
+    console.log('mcp-session-id captured:', sessionId);
+  } else {
+    console.log('no mcp-session-id header on the response — check the server is running');
+  }
+}

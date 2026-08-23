@@ -1,0 +1,23 @@
+meta {
+  name: 03 - Tools List
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/mcp
+  body: json
+  auth: inherit
+}
+
+headers {
+  Mcp-Session-Id: {{mcpSessionId}}
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/list"
+  }
+}

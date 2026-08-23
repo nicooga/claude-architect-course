@@ -1,0 +1,27 @@
+meta {
+  name: 04 - Tools Call - list_reminders
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/mcp
+  body: json
+  auth: inherit
+}
+
+headers {
+  Mcp-Session-Id: {{mcpSessionId}}
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "list_reminders",
+      "arguments": {}
+    }
+  }
+}

@@ -1,0 +1,22 @@
+meta {
+  name: 02 - Initialized Notification
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/mcp
+  body: json
+  auth: inherit
+}
+
+headers {
+  Mcp-Session-Id: {{mcpSessionId}}
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "method": "notifications/initialized"
+  }
+}

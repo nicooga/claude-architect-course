@@ -1,0 +1,26 @@
+meta {
+  name: 07 - Resources Read
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/mcp
+  body: json
+  auth: inherit
+}
+
+headers {
+  Mcp-Session-Id: {{mcpSessionId}}
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 6,
+    "method": "resources/read",
+    "params": {
+      "uri": "reminders://all"
+    }
+  }
+}
