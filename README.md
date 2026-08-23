@@ -205,7 +205,7 @@ server.
       stub. `src/prompt_caching/003_cache_in_action.py` runs its own tool loop
       and is unaffected. `lib/repl/stubbed_chat_smoke_test.py --check`
       confirms the REPL still works afterwards without spending tokens.
-- [ ] `001_mcp_client.py` - drives the protocol directly with the SDK and no
+- [x] `001_mcp_client.py` - drives the protocol directly with the SDK and no
       `lib/` code: `initialize`, then `tools/list` / `resources/list` /
       `prompts/list`, then one `tools/call`, one `resources/read`, and one
       `prompts/get` with the returned `PromptMessage`s printed with their
