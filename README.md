@@ -226,12 +226,18 @@ server.
       `mcp_tools(session)` lists a server's tools and wraps each one, ready
       for `AnthropicChatAdapter(tools=...)` - what `002_mcp_repl.py` needs
       next.
-- [ ] `002_mcp_repl.py` - the Stage 3 REPL with its tool list built from the
+- [x] `002_mcp_repl.py` - the Stage 3 REPL with its tool list built from the
       server instead of from imports, proving the REPL does not care whether
       a tool is local or remote. Prints the `tools` request parameter for a
-      local `set_reminder` next to the MCP-backed one: identical JSON is the
-      claim the whole stage rests on, that the model cannot tell where a tool
-      lives.
+      local `set_reminder` next to the MCP-backed one - not byte-identical
+      JSON, it turns out: the MCP schema is auto-derived (fastmcp/Pydantic),
+      so it carries `title` metadata and formats the description as a
+      wrapped docstring instead of one hand-written sentence. What matches,
+      checked by assertion, is what Claude actually acts on - the tool name,
+      required argument names, and each property's JSON type. That's the
+      claim the whole stage rests on: not identical bytes, but nothing in
+      the difference is something the model uses to tell a local tool from a
+      remote one.
 - [ ] `003_mcp_transports.py` - the Stage 5 server over stdio and over
       streamable HTTP, with an identical `tools/list` across both, then the
       same request through Anthropic's server-side connector (the
