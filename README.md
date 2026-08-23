@@ -250,7 +250,7 @@ server.
       one local one, `GetUserUTCOffsetTool` - the exception to "instead of,
       not alongside": it has no server-side counterpart to duplicate, since
       only a client tool can answer "what timezone is the user in."
-- [ ] `003_mcp_transports.py` - the Stage 5 server over stdio and over
+- [x] `003_mcp_transports.py` - the Stage 5 server over stdio and over
       streamable HTTP, with an identical `tools/list` across both, then the
       same request through Anthropic's server-side connector (the
       `mcp_servers` parameter), where the reply comes back as `mcp_tool_use`

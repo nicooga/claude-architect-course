@@ -27,11 +27,13 @@ not depend on the cwd the client happens to launch us from.
 """
 
 import json
+import os
 import sys
 from typing import Any, Dict, List
 
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.prompts.base import AssistantMessage, Message, UserMessage
+from mcp.server.transport_security import TransportSecuritySettings
 
 from lib.reminders import JsonFileReminderStore, add_duration, now_iso
 
@@ -183,4 +185,17 @@ if __name__ == "__main__":
     # the transport itself, so this branch only matters when the file is run
     # directly. Same server object either way.
     transport = sys.argv[1] if len(sys.argv) > 1 else "stdio"
-    mcp.run(transport)  # type: ignore[arg-type]
+
+    run_kwargs: Dict[str, Any] = {}
+    if transport == "streamable-http" and os.environ.get("MCP_ALLOW_ANY_HOST"):
+        # Binding host="127.0.0.1" (the default) auto-enables DNS-rebinding
+        # protection: the SDK only accepts Host/Origin headers naming
+        # localhost. Right for every normal launch here — Inspector, Claude
+        # Code, a same-machine client — but it also rejects a request
+        # forwarded through a reverse proxy/tunnel that preserves the
+        # original public Host header (Stage 6's ngrok tunnel, for one).
+        # Opt-in only, and only for this transport, so every other caller
+        # keeps the protection on by default.
+        run_kwargs["transport_security"] = TransportSecuritySettings(enable_dns_rebinding_protection=False)
+
+    mcp.run(transport, **run_kwargs)  # type: ignore[arg-type]
